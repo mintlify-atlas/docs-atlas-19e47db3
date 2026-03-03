@@ -1,0 +1,108 @@
+{
+  "projectType": "saas",
+  "projectName": "Sales Management App",
+  "projectDescription": "An Android app for managing sales teams with profit analysis, interactive graphs, chat, and leaderboards",
+  "theme": "almond",
+  "primaryColor": "#4CAF50",
+  "lightColor": "#81C784",
+  "darkColor": "#2E7D32",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Features",
+            "pages": [
+              "features/user-management",
+              "features/inventory",
+              "features/leaderboard",
+              "features/chat",
+              "features/analytics"
+            ]
+          },
+          {
+            "group": "User Guides",
+            "pages": [
+              "guides/manager-guide",
+              "guides/salesperson-guide",
+              "guides/recommendation-algorithm"
+            ]
+          },
+          {
+            "group": "Technical",
+            "pages": [
+              "technical/architecture",
+              "technical/firebase-setup",
+              "technical/data-models"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Core Classes",
+            "pages": [
+              "api/sales-manager",
+              "api/salesperson",
+              "api/inventory-item"
+            ]
+          },
+          {
+            "group": "Activities",
+            "pages": [
+              "api/manager-main",
+              "api/salesperson-main",
+              "api/account-manager"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "api/chat",
+              "api/graphs",
+              "api/leaderboard"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Dual role authentication (Manager and Salesperson)",
+    "Real-time inventory management with Firebase",
+    "Global and personal chat messaging",
+    "Interactive sales graphs and profit analysis charts",
+    "Leaderboard ranking system",
+    "Recommendation algorithm for sales targets",
+    "Profile management and team viewing",
+    "Image compression for optimized data storage"
+  ],
+  "publicApiSurface": [
+    "SalesManager",
+    "SalesPerson",
+    "InventoryItem",
+    "ManagerMain",
+    "SalespersonMain",
+    "AccountManager",
+    "ChatRoom",
+    "PersonalChatActivityManager",
+    "PersonalChatActivitySalesperson",
+    "GraphManagerActivity",
+    "GraphSalespersonActivity",
+    "LeaderBoardSalesperson",
+    "MyTeam",
+    "SessionManager",
+    "ImageSetter"
+  ]
+}
