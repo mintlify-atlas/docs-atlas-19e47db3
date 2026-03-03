@@ -83,7 +83,15 @@
             "pages": [
               "api/chat",
               "api/graphs",
-              "api/leaderboard"
+              "api/leaderboard",
+              "api/my-team"
+            ]
+          },
+          {
+            "group": "Utilities",
+            "pages": [
+              "api/session-manager",
+              "api/image-setter"
             ]
           }
         ]

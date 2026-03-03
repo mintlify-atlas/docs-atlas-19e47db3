@@ -1,0 +1,247 @@
+---
+title: MyTeam
+description: Activity for managers to view their sales team members with swipe actions for details and messaging
+---
+
+## Overview
+
+The `MyTeam` activity provides sales managers with a complete view of their team members. It features a swipeable list interface where managers can access salesperson details or initiate personal chats.
+
+<Info>
+  This activity is accessible only to users with the Manager role and displays salespersons assigned to the logged-in manager.
+</Info>
+
+## Class Definition
+
+```java MyTeam.java
+package project.avishkar.salesmanagement.MyTeam;
+
+import android.support.v7.app.AppCompatActivity;
+import com.baoyz.swipemenulistview.SwipeMenuListView;
+import com.google.firebase.database.FirebaseDatabase;
+
+public class MyTeam extends AppCompatActivity {
+    private SwipeMenuListView listView;
+    private MyTeamAdapter myTeamAdapter;
+    private ProgressBar spinner;
+    private String managerName;
+}
+```
+
+## UI Components
+
+<ParamField path="listView" type="SwipeMenuListView">
+  Custom ListView with swipe-to-reveal menu actions
+</ParamField>
+
+<ParamField path="myTeamAdapter" type="MyTeamAdapter">
+  Adapter for binding salesperson data to the list
+</ParamField>
+
+<ParamField path="spinner" type="ProgressBar">
+  Loading indicator displayed while fetching team data
+</ParamField>
+
+<ParamField path="managerName" type="String">
+  Name of the current manager, used to filter team members
+</ParamField>
+
+## Lifecycle Methods
+
+### onCreate
+
+Initializes the activity and loads the manager's team from Firebase.
+
+**Flow:**
+
+<Steps>
+  <Step title="Get Manager ID">
+    Retrieves the current user's ID from SessionManager
+    ```java
+    SessionManager sm = new SessionManager(getApplicationContext());
+    HashMap<String, String> details = sm.getUserDetails();
+    final String id = details.get("id");
+    ```
+  </Step>
+
+  <Step title="Fetch Manager Details">
+    Queries Firebase to get the manager's name using their ID
+    ```java
+    DatabaseReference databaseReference = 
+        FirebaseDatabase.getInstance().getReference("Manager");
+    // Find manager by ID and retrieve name
+    ```
+  </Step>
+
+  <Step title="Load Team Members">
+    Fetches all salespersons whose `managerName` matches the current manager
+    ```java
+    DatabaseReference databaseReference1 = 
+        FirebaseDatabase.getInstance().getReference("Salesperson");
+    // Filter salespersons by managerName
+    ```
+  </Step>
+
+  <Step title="Setup Swipe Menu">
+    Configures the swipe menu with "Details" and "Message" actions
+  </Step>
+</Steps>
+
+## Swipe Menu Actions
+
+The SwipeMenuListView provides two actions when swiping left on a team member:
+
+### 1. Details Action
+
+**Color:** Gray (`rgb(0xC9, 0xC9, 0xCE)`)  
+**Width:** 90dp  
+**Function:** Shows a dialog with complete salesperson information
+
+```java
+SwipeMenuItem detailsItem = new SwipeMenuItem(getApplicationContext());
+detailsItem.setBackground(new ColorDrawable(Color.rgb(0xC9, 0xC9, 0xCE)));
+detailsItem.setWidth(dp2px(90));
+detailsItem.setTitle("Details");
+detailsItem.setTitleSize(18);
+detailsItem.setTitleColor(Color.WHITE);
+```
+
+**Details Dialog Fields:**
+- Name
+- Phone number
+- Email address
+- Organization name
+- Profile picture (loaded via ImageSetter)
+
+### 2. Message Action
+
+**Color:** Red (`rgb(0xF9, 0x3F, 0x25)`)  
+**Width:** 90dp  
+**Icon:** `R.drawable.ic_message`  
+**Function:** Opens personal chat with the selected salesperson
+
+```java
+SwipeMenuItem messageItem = new SwipeMenuItem(getApplicationContext());
+messageItem.setBackground(new ColorDrawable(Color.rgb(0xF9, 0x3F, 0x25)));
+messageItem.setWidth(dp2px(90));
+messageItem.setIcon(R.drawable.ic_message);
+```
+
+When clicked, launches `PersonalChatActivityManager`:
+
+```java
+Intent intent = new Intent(getApplicationContext(), PersonalChatActivityManager.class);
+intent.putExtra("SalespersonName", list.get(position).getName());
+intent.putExtra("ManagerName", managerName);
+startActivity(intent);
+```
+
+## Data Loading Process
+
+```java
+// 1. Query Manager collection
+FirebaseDatabase.getInstance().getReference("Manager")
+    .addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            // Find manager by ID
+            for(DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                if(snapshot.getKey().equals(id)) {
+                    managerName = snapshot.getValue(SalesManager.class).getName();
+                    
+                    // 2. Query Salesperson collection
+                    FirebaseDatabase.getInstance().getReference("Salesperson")
+                        .addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(DataSnapshot dataSnapshot) {
+                                // Filter by managerName
+                                for(DataSnapshot snapshot1 : dataSnapshot.getChildren()) {
+                                    if(snapshot1.getValue(SalesPerson.class)
+                                        .getManagerName().equals(managerName)) {
+                                        list.add(snapshot1.getValue(SalesPerson.class));
+                                    }
+                                }
+                                // 3. Setup UI
+                                myTeamAdapter = new MyTeamAdapter(getApplicationContext(), list);
+                                listView.setAdapter(myTeamAdapter);
+                                spinner.setVisibility(View.GONE);
+                            }
+                        });
+                }
+            }
+        }
+    });
+```
+
+## Dialog Layout
+
+The details dialog uses the layout: `R.layout.dialog_box_myteam_details`
+
+**Components:**
+- `name` (TextView) - Salesperson's full name
+- `mobile` (TextView) - Phone number
+- `emailid` (TextView) - Email address
+- `organisation` (TextView) - Company/organization name
+- `user_pic` (ImageView) - Profile picture
+- `progressBar6` (ProgressBar) - Data loading spinner
+- `progressBar10` (ProgressBar) - Image loading spinner
+
+## Adapter Integration
+
+The activity uses `MyTeamAdapter` to render the list of salespersons:
+
+```java
+myTeamAdapter = new MyTeamAdapter(getApplicationContext(), list);
+listView.setAdapter(myTeamAdapter);
+```
+
+The adapter binds each `SalesPerson` object to a list item view.
+
+## Animation
+
+The swipe menu uses a bounce interpolator for smooth closing animation:
+
+```java
+listView.setCloseInterpolator(new BounceInterpolator());
+```
+
+## Navigation
+
+**Accessed from:** ManagerMain activity via navigation drawer  
+**Launches:** PersonalChatActivityManager (when message action clicked)
+
+## Dependencies
+
+<CardGroup cols={2}>
+  <Card title="SwipeMenuListView" icon="list">
+    Third-party library for swipeable list items
+    ```gradle
+    implementation 'com.baoyz.swipemenulistview:library:1.3.0'
+    ```
+  </Card>
+  <Card title="Firebase Database" icon="database">
+    Real-time database for team data
+  </Card>
+</CardGroup>
+
+## Related Classes
+
+<CardGroup cols={3}>
+  <Card title="MyTeamAdapter" icon="table">
+    List adapter for rendering team members
+  </Card>
+  <Card title="SessionManager" icon="key" href="/api/session-manager">
+    Retrieves current manager's session
+  </Card>
+  <Card title="ImageSetter" icon="image" href="/api/image-setter">
+    Loads profile pictures in dialog
+  </Card>
+</CardGroup>
+
+## Source Reference
+
+File: `~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/MyTeam/MyTeam.java`
+
+<Note>
+  This activity implements the "Team Management" feature listed in the manager capabilities, allowing managers to view team profiles and initiate direct communication.
+</Note>

@@ -1,0 +1,171 @@
+---
+title: SessionManager
+description: Manages user authentication sessions using SharedPreferences for persistent login state
+---
+
+## Overview
+
+The `SessionManager` class handles user session persistence across app launches. It stores user credentials and role information in Android's SharedPreferences, enabling automatic login and role-based navigation.
+
+<Note>
+  This class is used throughout the app to maintain user authentication state and determine role-based access control.
+</Note>
+
+## Class Definition
+
+```java SessionManager.java
+package project.avishkar.salesmanagement;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.content.SharedPreferences.Editor;
+
+public class SessionManager {
+    SharedPreferences pref;
+    Editor editor;
+    Context _context;
+    int PRIVATE_MODE = 0;
+
+    private static final String PREF_NAME = "Details";
+    private static final String UNIQ_ID = "id";
+    public static final String ROLE = "role";
+}
+```
+
+## Constructor
+
+<ParamField path="SessionManager(Context context)" type="void">
+  Initializes the session manager with application context and sets up SharedPreferences.
+
+  **Parameters:**
+  - `context` (Context) - Application context for accessing SharedPreferences
+
+  **Example:**
+  ```java
+  SessionManager sm = new SessionManager(getApplicationContext());
+  ```
+</ParamField>
+
+## Methods
+
+### createLoginSession
+
+```java
+public void createLoginSession(String id, String role)
+```
+
+Stores user credentials and role in SharedPreferences when a user successfully logs in.
+
+<ParamField path="id" type="String" required>
+  The unique identifier for the user (typically email or Firebase UID)
+</ParamField>
+
+<ParamField path="role" type="String" required>
+  The user's role - either "Manager" or "Salesperson"
+</ParamField>
+
+**Usage Example:**
+
+```java MainActivity.java
+// After successful Firebase authentication
+SessionManager sessionManager = new SessionManager(getApplicationContext());
+sessionManager.createLoginSession(user.getEmail(), "Manager");
+
+// Navigate to appropriate dashboard
+if (role.equals("Manager")) {
+    startActivity(new Intent(this, ManagerMain.class));
+} else {
+    startActivity(new Intent(this, SalespersonMain.class));
+}
+```
+
+### getUserDetails
+
+```java
+public HashMap<String, String> getUserDetails()
+```
+
+Retrieves the stored user session information.
+
+**Returns:** HashMap containing:
+- `"id"` - User identifier (or "Not Found" if no session exists)
+- `"role"` - User role (or "Not Found" if no session exists)
+
+<ResponseField name="id" type="String">
+  The stored user identifier from the active session
+</ResponseField>
+
+<ResponseField name="role" type="String">
+  The stored user role ("Manager" or "Salesperson")
+</ResponseField>
+
+**Usage Example:**
+
+```java
+SessionManager sm = new SessionManager(getApplicationContext());
+HashMap<String, String> details = sm.getUserDetails();
+String userId = details.get("id");
+String userRole = details.get("role");
+
+if (userRole.equals("Manager")) {
+    // Load manager-specific data
+}
+```
+
+### logoutUser
+
+```java
+public void logoutUser()
+```
+
+Clears all session data from SharedPreferences, effectively logging out the user.
+
+**Usage Example:**
+
+```java AccountManager.java
+// When user clicks logout button
+SessionManager sessionManager = new SessionManager(getApplicationContext());
+sessionManager.logoutUser();
+
+// Redirect to login screen
+Intent intent = new Intent(this, MainActivity.class);
+intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+startActivity(intent);
+finish();
+```
+
+## Constants
+
+<ParamField path="PREF_NAME" type="String" default="Details">
+  The name of the SharedPreferences file where session data is stored
+</ParamField>
+
+<ParamField path="UNIQ_ID" type="String" default="id">
+  Key for storing/retrieving the user identifier
+</ParamField>
+
+<ParamField path="ROLE" type="String" default="role">
+  Public constant key for storing/retrieving the user role
+</ParamField>
+
+<ParamField path="PRIVATE_MODE" type="int" default="0">
+  SharedPreferences access mode (private to this app)
+</ParamField>
+
+## Integration Points
+
+The `SessionManager` is used in several key activities:
+
+1. **MainActivity** - Checks for existing session on app launch
+2. **ManagerMain** - Retrieves manager ID for data queries
+3. **SalespersonMain** - Retrieves salesperson ID for personalization
+4. **MyTeam** - Gets manager ID to filter team members
+5. **AccountManager** - Provides logout functionality
+
+## Source Reference
+
+File: `~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/SessionManager.java`
+
+<Card title="Related Classes" icon="link" href="/api/account-manager">
+  View AccountManager documentation for logout implementation
+</Card>

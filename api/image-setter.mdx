@@ -1,0 +1,187 @@
+---
+title: ImageSetter
+description: Utility class for loading user profile images from Firebase Storage using Glide library
+---
+
+## Overview
+
+The `ImageSetter` class provides a static method to asynchronously load user profile pictures from Firebase Storage into ImageView components. It uses the Glide library for efficient image loading with circular crop transformation.
+
+<Note>
+  This utility implements image compression optimization mentioned in the app's advanced features, reducing bandwidth usage when displaying profile pictures.
+</Note>
+
+## Class Definition
+
+```java ImageSetter.java
+package project.avishkar.salesmanagement;
+
+import android.content.Context;
+import android.widget.ImageView;
+import android.widget.ProgressBar;
+import com.bumptech.glide.Glide;
+import com.google.firebase.database.FirebaseDatabase;
+
+public class ImageSetter {
+    private static DatabaseReference mDatabase = 
+        FirebaseDatabase.getInstance().getReference(Constants.DATABASE_UPLOADS);
+}
+```
+
+## Methods
+
+### setImage
+
+```java
+public static void setImage(
+    final Context context, 
+    final ImageView view, 
+    final String currEmail, 
+    final ProgressBar mSpinner
+)
+```
+
+Asynchronously loads a user's profile image from Firebase Storage based on their email address.
+
+<ParamField path="context" type="Context" required>
+  Application or activity context for Glide image loading
+</ParamField>
+
+<ParamField path="view" type="ImageView" required>
+  The ImageView where the profile picture will be displayed
+</ParamField>
+
+<ParamField path="currEmail" type="String" required>
+  The user's email address used to look up their profile image in Firebase
+</ParamField>
+
+<ParamField path="mSpinner" type="ProgressBar" required>
+  ProgressBar widget to show loading state while fetching the image
+</ParamField>
+
+## How It Works
+
+1. **Shows Loading Indicator** - Sets the ProgressBar to visible
+2. **Queries Firebase Database** - Searches the uploads node for matching email
+3. **Loads Image with Glide** - Applies circular crop transformation and placeholder
+4. **Hides Loading Indicator** - Removes ProgressBar when complete
+
+```java
+mDatabase.addListenerForSingleValueEvent(new ValueEventListener() {
+    @Override
+    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+        for(DataSnapshot snapshot : dataSnapshot.getChildren()){
+            Upload upload = snapshot.getValue(Upload.class);
+            if(upload.getEmail().equals(currEmail)){
+                Glide.with(context)
+                    .load(upload.getUrl())
+                    .apply(RequestOptions.circleCropTransform()
+                        .placeholder(R.mipmap.boy))
+                    .into((ImageView) view);
+                mSpinner.setVisibility(View.GONE);
+                break;
+            }
+        }
+        mSpinner.setVisibility(View.GONE);
+    }
+});
+```
+
+## Usage Example
+
+```java MyTeam.java
+// In MyTeam activity - loading salesperson profile picture
+final ImageView imageView = mView.findViewById(R.id.user_pic);
+final ProgressBar spinnerImage = mView.findViewById(R.id.progressBar10);
+
+ImageSetter.setImage(
+    mView.getContext(),
+    imageView,
+    salesperson.getEmailId(),
+    spinnerImage
+);
+```
+
+```java AccountManager.java
+// In AccountManager activity - loading current user's profile
+ImageView profilePic = findViewById(R.id.profile_picture);
+ProgressBar loadingSpinner = findViewById(R.id.image_spinner);
+
+ImageSetter.setImage(
+    getApplicationContext(),
+    profilePic,
+    currentUserEmail,
+    loadingSpinner
+);
+```
+
+## Image Transformation
+
+The method applies a **circular crop transformation** to all profile images using Glide's `RequestOptions.circleCropTransform()`, creating a consistent circular avatar appearance throughout the app.
+
+### Placeholder
+
+If no image is found or while loading, a default placeholder is shown:
+- Resource: `R.mipmap.boy`
+- Applied via: `.placeholder(R.mipmap.boy)`
+
+## Firebase Database Structure
+
+The method queries the database path defined in `Constants.DATABASE_UPLOADS`:
+
+```
+Firebase Database
+└── uploads/
+    ├── upload1
+    │   ├── email: "user@example.com"
+    │   └── url: "https://firebase.storage.../profile.jpg"
+    └── upload2
+        ├── email: "another@example.com"
+        └── url: "https://firebase.storage.../photo.jpg"
+```
+
+## Dependencies
+
+<CardGroup cols={2}>
+  <Card title="Glide" icon="image">
+    Image loading library with caching and transformations
+    ```gradle
+    implementation 'com.github.bumptech.glide:glide:4.8.0'
+    ```
+  </Card>
+  <Card title="Firebase Database" icon="database">
+    Real-time database for storing image metadata
+    ```gradle
+    implementation 'com.google.firebase:firebase-database:16.0.1'
+    ```
+  </Card>
+</CardGroup>
+
+## Performance Optimization
+
+<Accordion title="Image Compression">
+  Before uploading to Firebase Storage, images are compressed to reduce storage costs and improve loading times. This compression happens in the upload flow within `AccountManager`.
+</Accordion>
+
+<Accordion title="Glide Caching">
+  Glide automatically caches loaded images, preventing redundant network requests when the same profile picture is displayed multiple times.
+</Accordion>
+
+## Error Handling
+
+The method includes an `onCancelled` callback for database errors, though it doesn't implement specific error handling. The ProgressBar is always hidden even if the image fails to load, preventing UI freezing.
+
+## Related Classes
+
+<CardGroup cols={2}>
+  <Card title="Upload" icon="upload" href="/technical/data-models#upload">
+    Data model for image upload metadata
+  </Card>
+  <Card title="Constants" icon="gear">
+    Contains `DATABASE_UPLOADS` constant for Firebase path
+  </Card>
+</CardGroup>
+
+## Source Reference
+
+File: `~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/ImageSetter.java`
