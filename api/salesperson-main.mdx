@@ -1,0 +1,410 @@
+---
+title: SalespersonMain Activity
+description: Main dashboard activity for salespersons to view inventory, record sales, and access sales tools
+---
+
+## Overview
+
+The `SalespersonMain` activity is the primary interface for salespersons in the Sales Management application. It enables salespersons to view their assigned inventory, record sales transactions, update manager inventories, and access leaderboards and statistics.
+
+**Package:** `project.avishkar.salesmanagement`
+
+**Extends:** `AppCompatActivity`
+
+**Implements:** `NavigationView.OnNavigationItemSelectedListener`
+
+## Key Features
+
+- Real-time inventory viewing synchronized with manager
+- Sales recording with autocomplete item selection
+- Automatic inventory updates across all team members
+- Manager sold quantity synchronization
+- Graph node creation for sales statistics
+- Leaderboard access and chat functionality
+
+## UI Components
+
+### Primary Views
+
+```java
+private RecyclerView mRecyclerView;           // Displays inventory items
+private RecyclerView.Adapter mAdapter;         // SalespersonInventoryAdapter
+private SwipeRefreshLayout swipeRefreshLayout; // Pull-to-refresh
+private ProgressBar spinner;                   // Loading indicator
+private FloatingActionButton fab;              // Sell item button
+```
+
+### Instance Variables
+
+```java
+private DatabaseReference databaseReference;
+private ArrayList<InventoryItem> list;
+private String managerName, salespersonName, id, role;
+private String SalesPersonName;
+private int sold;
+```
+
+## Lifecycle Methods
+
+### onCreate(Bundle savedInstanceState)
+
+Initializes the activity and loads salesperson inventory:
+
+```java
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_salesperson_main);
+    
+    SessionManager sm = new SessionManager(getApplicationContext());
+    HashMap<String, String> details = sm.getUserDetails();
+    id = details.get("id");
+    role = details.get("role");
+    
+    databaseReference = FirebaseDatabase.getInstance().getReference(role);
+    mRecyclerView = findViewById(R.id.items_list1);
+    
+    // Load inventory from Firebase
+    list = new ArrayList<>();
+    databaseReference.child(id).child("Inventory")
+        .addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for(DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    InventoryItem it1 = snapshot.getValue(InventoryItem.class);
+                    list.add(it1);
+                }
+                mAdapter = new SalespersonInventoryAdapter(getApplicationContext(), list);
+                mRecyclerView.setAdapter(mAdapter);
+                spinner.setVisibility(View.GONE);
+            }
+        });
+}
+```
+
+### onBackPressed()
+
+Overrides back button to show exit confirmation dialog:
+
+```java
+@Override
+public void onBackPressed() {
+    DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+    if (drawer.isDrawerOpen(GravityCompat.START)) {
+        drawer.closeDrawer(GravityCompat.START);
+    } else {
+        // Shows FancyAlertDialog confirmation
+    }
+}
+```
+
+## Sales Recording Flow
+
+The FAB (Floating Action Button) triggers the sales recording dialog:
+
+### Step 1: Display Item Selection Dialog
+
+```java
+fab.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        ArrayList<String> itemlist = getItemList(id, role);
+        
+        final AlertDialog.Builder mBuilder = new AlertDialog.Builder(SalespersonMain.this);
+        final View mView = getLayoutInflater().inflate(R.layout.activity_selling, null);
+        final AutoCompleteTextView autoCompleteTextView;
+        final MeterView numberPicker;
+        
+        autoCompleteTextView = mView.findViewById(R.id.autoCompleteTextView1);
+        numberPicker = mView.findViewById(R.id.sold_number);
+        
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+            mView.getContext(), 
+            R.layout.support_simple_spinner_dropdown_item, 
+            itemlist
+        );
+        
+        autoCompleteTextView.setThreshold(1);
+        autoCompleteTextView.setAdapter(adapter);
+    }
+});
+```
+
+### Step 2: Validate Input
+
+```java
+sold = numberPicker.getValue();
+final String itemName = autoCompleteTextView.getText().toString();
+
+if(TextUtils.isEmpty(itemName) || sold == 0) {
+    Toast.makeText(getApplicationContext(), 
+                   "Please fill all the details!", 
+                   Toast.LENGTH_LONG).show();
+}
+```
+
+<Info>
+The autocomplete feature helps salespersons quickly select items from their available inventory, reducing input errors.
+</Info>
+
+### Step 3: Update Salesperson Inventory
+
+Increases the "sold" count for the salesperson:
+
+```java
+InventoryItem it1 = snapshot1.getValue(InventoryItem.class);
+if(it1.getTotal_available() < sold) {
+    Toast.makeText(getApplicationContext(), 
+                   "Sold can't be greater than items remaining!", 
+                   Toast.LENGTH_LONG).show();
+    sold = 0;
+}
+InventoryItem it = new InventoryItem(
+    itemName,
+    it1.getTotal_available(),
+    sold + it1.getSold(), 
+    it1.getProfit()
+);
+databaseReference1.child(id).child("Inventory").child(snapshot1.getKey()).setValue(it);
+```
+
+<Note>
+The system validates that the sold quantity doesn't exceed available inventory before processing the sale.
+</Note>
+
+### Step 4: Update Manager's Sold Count
+
+Calls `updateManagerSold()` to sync manager inventory:
+
+```java
+updateManagerSold(managerName, itemName, sold);
+```
+
+### Step 5: Create Graph Node
+
+Generates statistics entry for the sale:
+
+```java
+if(sold > 0) {
+    GraphSalesperson.create(
+        String.valueOf(it1.getProfit() * sold), 
+        salespersonName
+    );
+}
+```
+
+### Step 6: Decrease Total Available for All Team Members
+
+Reduces inventory across all salespersons under the same manager:
+
+```java
+DatabaseReference databaseReference2 = FirebaseDatabase.getInstance().getReference("Salesperson");
+databaseReference2.addListenerForSingleValueEvent(new ValueEventListener() {
+    @Override
+    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+        for(final DataSnapshot snapshot3 : dataSnapshot.getChildren()) {
+            SalesPerson sp = snapshot3.getValue(SalesPerson.class);
+            
+            if(sp.getManagerName().equals(managerName)) {
+                // Decrease total_available for this salesperson
+                InventoryItem it = new InventoryItem(
+                    itemName,
+                    it1.getTotal_available() - sold,
+                    it1.getSold(), 
+                    it1.getProfit()
+                );
+                databaseReference1.child(snapshot3.getKey())
+                    .child("Inventory")
+                    .child(snapshot1.getKey())
+                    .setValue(it);
+            }
+        }
+    }
+});
+```
+
+<Info>
+When a salesperson records a sale, the system automatically reduces the "total_available" count for all salespersons in the same team, ensuring accurate inventory tracking across the organization.
+</Info>
+
+## Key Methods
+
+### updateManagerSold(String managerName, String itemName, int sold)
+
+Updates the manager's sold quantity when a salesperson makes a sale:
+
+```java
+private void updateManagerSold(final String managerName, final String itemName, final int sold) {
+    final DatabaseReference databaseReference = FirebaseDatabase.getInstance()
+        .getReference("Manager");
+    
+    databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for(final DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                if(snapshot.getValue(SalesManager.class).getName().equals(managerName)) {
+                    databaseReference.child(snapshot.getKey())
+                        .child("Inventory")
+                        .addListenerForSingleValueEvent(new ValueEventListener() {
+                            @Override
+                            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                                for(DataSnapshot snapshot1 : dataSnapshot.getChildren()) {
+                                    if(snapshot1.getValue(InventoryItem.class)
+                                        .getItemName().equals(itemName)) {
+                                        InventoryItem it1 = snapshot1.getValue(InventoryItem.class);
+                                        InventoryItem itNew = new InventoryItem(
+                                            itemName,
+                                            it1.getTotal_available(),
+                                            it1.getSold() + sold, 
+                                            it1.getProfit()
+                                        );
+                                        databaseReference.child(snapshot.getKey())
+                                            .child("Inventory")
+                                            .child(snapshot1.getKey())
+                                            .setValue(itNew);
+                                    }
+                                }
+                            }
+                        });
+                }
+            }
+        }
+    });
+}
+```
+
+### getItemList(String id, String role)
+
+Retrieves available item names for autocomplete:
+
+```java
+private ArrayList<String> getItemList(String id, String role) {
+    final ArrayList<String> itemlist = new ArrayList<>();
+    databaseReference.child(id).child("Inventory")
+        .addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for(DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    InventoryItem it1 = snapshot.getValue(InventoryItem.class);
+                    itemlist.add(it1.getItemName());
+                }
+            }
+        });
+    return itemlist;
+}
+```
+
+### updateList(String id, String role, boolean spin)
+
+Refreshes the inventory display:
+
+```java
+void updateList(String id, String role, final boolean spin) {
+    if(spin == true) {
+        spinner.setVisibility(View.VISIBLE);
+    }
+    
+    final ArrayList<InventoryItem> list = new ArrayList<>();
+    databaseReference.child(id).child("Inventory")
+        .addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for(DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    InventoryItem it1 = snapshot.getValue(InventoryItem.class);
+                    list.add(it1);
+                }
+                mAdapter = new SalespersonInventoryAdapter(getApplicationContext(), list);
+                mRecyclerView.setAdapter(mAdapter);
+                if(spin == true)
+                    spinner.setVisibility(View.GONE);
+            }
+        });
+}
+```
+
+## Navigation Menu Items
+
+### onNavigationItemSelected(MenuItem item)
+
+| Menu Item | Action | Destination |
+|-----------|--------|-------------|
+| `dashboard` | Stay on current screen | SalespersonMain |
+| `my_account` | View/edit account | AccountManager.class |
+| `leaderboard` | View sales rankings | LeaderBoardSalesperson.class |
+| `statistics` | View personal stats | GraphSalespersonActivity.class |
+| `nav_share` | Share app APK | System share intent |
+| `message_manager` | Direct message manager | PersonalChatActivitySalesperson.class |
+| `chat_room` | Team chat room | ChatRoom.class |
+
+### Chat Room Integration
+
+Salespersons can join the team chat room:
+
+```java
+SessionManager sessionManager = new SessionManager(getApplicationContext());
+final String idSP = sessionManager.getUserDetails().get("id");
+databaseReference = FirebaseDatabase.getInstance().getReference("Salesperson");
+
+// Find manager's phone number for chat room
+DatabaseReference databaseReference1 = FirebaseDatabase.getInstance()
+    .getReference("Manager");
+for(DataSnapshot dataSnapshot1: dataSnapshot.getChildren()) {
+    SalesManager salesManager = dataSnapshot1.getValue(SalesManager.class);
+    if(salesManager.getName().equals(thisManagerName)) {
+        Intent intent = new Intent(SalespersonMain.this, ChatRoom.class);
+        intent.putExtra("ManagerNumber", salesManager.getNumber());
+        intent.putExtra("Name", SalesPersonName);
+        startActivity(intent);
+    }
+}
+```
+
+## SwipeRefresh Integration
+
+```java
+swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+    @Override
+    public void onRefresh() {
+        updateList(id, role, false);
+        swipeRefreshLayout.setRefreshing(false);
+    }
+});
+```
+
+## Navigation Drawer Header
+
+Displays salesperson profile information:
+
+```java
+View headView = navigationView.getHeaderView(0);
+final TextView headerSalespersonName = headView.findViewById(R.id.SalespersonName);
+final TextView headerSalespersonEmail = headView.findViewById(R.id.SalespersonMail);
+final ImageView headerSalespersonImage = headView.findViewById(R.id.imageView);
+
+DatabaseReference reference = FirebaseDatabase.getInstance().getReference("Salesperson");
+reference.addListenerForSingleValueEvent(new ValueEventListener() {
+    @Override
+    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+        for(DataSnapshot snapshot : dataSnapshot.getChildren()) {
+            if(snapshot.getKey().equals(id)) {
+                SalesPerson sm = snapshot.getValue(SalesPerson.class);
+                headerSalespersonName.setText(sm.getName());
+                headerSalespersonEmail.setText(sm.getEmailId());
+                ImageSetter.setImage(getApplicationContext(), 
+                                    headerSalespersonImage, 
+                                    sm.getEmailId(), 
+                                    spinner);
+            }
+        }
+    }
+});
+```
+
+## Related Classes
+
+- `InventoryItem` - Data model for inventory items
+- `SalespersonInventoryAdapter` - RecyclerView adapter for salesperson view
+- `SalesPerson` - Data model for salesperson information
+- `SalesManager` - Data model for manager information
+- `GraphSalesperson` - Utility for creating sales graph nodes
+- `SessionManager` - Session management

@@ -1,0 +1,128 @@
+---
+title: 'SalesManager'
+description: 'Core class representing a sales manager with authentication and inventory management capabilities'
+---
+
+## Overview
+
+The `SalesManager` class represents a sales manager in the application. It stores manager credentials, contact information, organization details, and manages an inventory of items.
+
+## Constructor
+
+### Default Constructor
+
+```java
+public SalesManager()
+```
+
+Creates an empty SalesManager instance with no initialized fields.
+
+### Parameterized Constructor
+
+```java
+public SalesManager(String name, String number, String password, String email, String orgName)
+```
+
+Creates a SalesManager with specified credentials and details.
+
+<ParamField path="name" type="String">
+  The name of the sales manager
+</ParamField>
+
+<ParamField path="number" type="String">
+  The phone number of the sales manager
+</ParamField>
+
+<ParamField path="password" type="String">
+  The password for authentication
+</ParamField>
+
+<ParamField path="email" type="String">
+  The email address of the sales manager
+</ParamField>
+
+<ParamField path="orgName" type="String">
+  The organization name the manager belongs to
+</ParamField>
+
+## Fields
+
+<ResponseField name="name" type="String" required>
+  The name of the sales manager
+</ResponseField>
+
+<ResponseField name="number" type="String" required>
+  The phone number of the sales manager
+</ResponseField>
+
+<ResponseField name="password" type="String" required>
+  The password for authentication
+</ResponseField>
+
+<ResponseField name="email" type="String" required>
+  The email address of the sales manager
+</ResponseField>
+
+<ResponseField name="orgName" type="String" required>
+  The organization name the manager belongs to
+</ResponseField>
+
+<ResponseField name="inventoryItems" type="ArrayList<InventoryItem>" required>
+  List of inventory items managed by this sales manager
+</ResponseField>
+
+## Methods
+
+### getName()
+
+```java
+public String getName()
+```
+
+Returns the name of the sales manager.
+
+**Returns:** `String` - The manager's name
+
+### getNumber()
+
+```java
+public String getNumber()
+```
+
+Returns the phone number of the sales manager.
+
+**Returns:** `String` - The manager's phone number
+
+### getPassword()
+
+```java
+public String getPassword()
+```
+
+Returns the password of the sales manager.
+
+**Returns:** `String` - The manager's password
+
+### getEmail()
+
+```java
+public String getEmail()
+```
+
+Returns the email address of the sales manager.
+
+**Returns:** `String` - The manager's email address
+
+### getOrgName()
+
+```java
+public String getOrgName()
+```
+
+Returns the organization name the manager belongs to.
+
+**Returns:** `String` - The organization name
+
+## Source Code Location
+
+`~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/SalesManager.java`

@@ -1,0 +1,374 @@
+---
+title: Leaderboard API
+description: Competitive ranking system based on salesperson performance metrics
+---
+
+## Overview
+
+The Leaderboard API provides a competitive ranking system that calculates and displays top-performing salespersons based on their Performance Index (PI), which accounts for profit generated per day since signup.
+
+## LeaderBoardSalesperson
+
+Activity that displays the leaderboard rankings and provides performance recommendations.
+
+**Package**: `project.avishkar.salesmanagement.Leaderboard`
+
+### Key Features
+
+- Performance Index (PI) calculation
+- Top 10 salespersons ranking
+- Recommendation algorithm for target setting
+- Real-time Firebase integration
+- Circular progress indicator for goals
+
+### Properties
+
+<ParamField path="SalespersonList" type="ArrayList<SalesPerson>">
+  List of all salespersons in the system
+</ParamField>
+
+<ParamField path="performanceIndex" type="ArrayList<String>">
+  Calculated performance index values for each salesperson
+</ParamField>
+
+<ParamField path="mAdapter" type="LeaderBoardAdapter">
+  RecyclerView adapter for displaying leaderboard items
+</ParamField>
+
+<ParamField path="mRecyclerView" type="RecyclerView">
+  Displays the ranked list of salespersons
+</ParamField>
+
+<ParamField path="fabButton" type="FloatingActionButton">
+  Triggers recommendation algorithm display
+</ParamField>
+
+### Performance Index Calculation
+
+The Performance Index measures daily average profit:
+
+<CodeGroup>
+```java Performance Index Formula
+Long currTimeInSecs = System.currentTimeMillis() / 1000;
+Long signupTimeInSecs = Long.parseLong(
+    leaderBoardObject.getTimestamp()
+);
+
+Long timeDiff = ((currTimeInSecs - signupTimeInSecs) / 86400) + 1;
+
+String performanceCurr = String.valueOf(
+    (totalProfit * 1.0) / timeDiff
+);
+
+// Format to 2 decimal places
+int index = performanceCurr.lastIndexOf('.');
+performanceCurr = performanceCurr.substring(0, index + 2);
+```
+</CodeGroup>
+
+<Note>
+  Performance Index = Total Profit / Days Since Signup. This provides a normalized metric that accounts for how long each salesperson has been active.
+</Note>
+
+### Recommendation Algorithm
+
+The floating action button triggers a recommendation system:
+
+<CodeGroup>
+```java Target Calculation
+Double PiTopper = Collections.max(arrayList);
+Double PiCurr = Double.parseDouble(
+    performanceIndex.get(i)
+);
+
+// Calculate recommended target with 10% buffer
+Double targetProfit = (PiCurr + (PiTopper - PiCurr)) * 1.10;
+```
+</CodeGroup>
+
+This calculates a target profit that bridges the gap between current performance and top performer, with a 10% stretch goal.
+
+### Methods
+
+#### ListenerRunner1()
+
+Fetches all salespersons from Firebase.
+
+<CodeGroup>
+```java ListenerRunner1
+synchronized void ListenerRunner1() {
+    DatabaseReference databaseReference = 
+        FirebaseDatabase.getInstance()
+            .getReference("Salesperson");
+    
+    databaseReference.addListenerForSingleValueEvent(
+        new ValueEventListener() {
+            @Override
+            public void onDataChange(
+                @NonNull DataSnapshot dataSnapshot
+            ) {
+                for (DataSnapshot dataSnapshot1 : 
+                     dataSnapshot.getChildren()) {
+                    
+                    SalesPerson salesPerson = 
+                        dataSnapshot1.getValue(SalesPerson.class);
+                    String key = dataSnapshot1.getKey();
+                    
+                    ListenerRunner2(
+                        key, 
+                        salesPerson.getName(), 
+                        salesPerson
+                    );
+                }
+            }
+        });
+}
+```
+</CodeGroup>
+
+#### ListenerRunner2()
+
+Calculates total profit for each salesperson.
+
+<CodeGroup>
+```java ListenerRunner2
+synchronized void ListenerRunner2(
+    String key, 
+    final String name, 
+    final SalesPerson salesPerson
+) {
+    DatabaseReference databaseReference = 
+        FirebaseDatabase.getInstance()
+            .getReference("Salesperson");
+    
+    databaseReference.child(key)
+        .child("Inventory")
+        .addListenerForSingleValueEvent(
+            new ValueEventListener() {
+                @Override
+                public void onDataChange(
+                    @NonNull DataSnapshot dataSnapshot
+                ) {
+                    int totalProfit = 0;
+                    for (DataSnapshot dataSnapshot2 : 
+                         dataSnapshot.getChildren()) {
+                        
+                        InventoryItem inventoryItem = 
+                            dataSnapshot2.getValue(
+                                InventoryItem.class
+                            );
+                        totalProfit += 
+                            inventoryItem.getSold() * 
+                            inventoryItem.getProfit();
+                    }
+                    
+                    ListenerRunner3(
+                        name, 
+                        salesPerson, 
+                        totalProfit
+                    );
+                }
+            });
+}
+```
+</CodeGroup>
+
+#### ListenerRunner3()
+
+Calculates Performance Index and populates the leaderboard.
+
+---
+
+## LeaderBoardAdapter
+
+RecyclerView adapter for rendering leaderboard items with ranking logic.
+
+**Package**: `project.avishkar.salesmanagement.Leaderboard`
+
+### Key Features
+
+- Sorts salespersons by Performance Index
+- Displays top 10 performers
+- Shows rank, name, PI, and profile picture
+- Automatic image loading with progress indicator
+
+### Properties
+
+<ParamField path="personArrayList" type="ArrayList<SalesPerson>">
+  List of salespersons to display
+</ParamField>
+
+<ParamField path="performanceIndex" type="ArrayList<String>">
+  Corresponding performance index values
+</ParamField>
+
+<ParamField path="context" type="Context">
+  Android context for resource access
+</ParamField>
+
+### Sorting Logic
+
+<CodeGroup>
+```java Sorting Implementation
+List<Pair<String, SalesPerson>> container = new ArrayList<>();
+
+for (int i = 0; i < performanceIndex.size(); i++) {
+    container.add(new Pair<String, SalesPerson>(
+        performanceIndex.get(i), 
+        personArrayList.get(i)
+    ));
+}
+
+Collections.sort(container, new Comparator<Pair<String, SalesPerson>>() {
+    @Override
+    public int compare(
+        Pair<String, SalesPerson> pair1, 
+        Pair<String, SalesPerson> pair2
+    ) {
+        // Negative for descending order
+        return -pair1.first.compareTo(pair2.first);
+    }
+});
+
+// Extract top 10
+ArrayList<String> PI = new ArrayList<>();
+ArrayList<SalesPerson> SP = new ArrayList<>();
+
+for (int i = 0; i < Math.min(10, performanceIndex.size()); i++) {
+    PI.add(container.get(i).first);
+    SP.add(container.get(i).second);
+}
+```
+</CodeGroup>
+
+### ViewHolder Binding
+
+<CodeGroup>
+```java onBindViewHolder
+@Override
+public void onBindViewHolder(
+    @NonNull MyViewHolder holder, 
+    int position
+) {
+    // Sorting logic...
+    
+    SalesPerson salesPerson = SP.get(position);
+    holder.performanceIndex.setText(PI.get(position));
+    holder.name.setText(salesPerson.getName());
+    holder.rank.setText(String.valueOf(position + 1) + ".");
+    
+    ImageSetter.setImage(
+        context,
+        holder.imageView,
+        salesPerson.getEmailId(),
+        holder.progressBar
+    );
+}
+```
+</CodeGroup>
+
+### ViewHolder Structure
+
+<CodeGroup>
+```java MyViewHolder
+public class MyViewHolder extends RecyclerView.ViewHolder {
+    private TextView rank, name, performanceIndex;
+    private ImageView imageView;
+    private ProgressBar progressBar;
+    
+    public MyViewHolder(View itemView) {
+        super(itemView);
+        rank = itemView.findViewById(R.id.rank);
+        name = itemView.findViewById(R.id.salesperson_name);
+        performanceIndex = itemView.findViewById(
+            R.id.performance_index
+        );
+        imageView = itemView.findViewById(R.id.salesperson_pic);
+        progressBar = itemView.findViewById(
+            R.id.leaderboard_progress
+        );
+    }
+}
+```
+</CodeGroup>
+
+<Note>
+  The adapter returns `Math.min(performanceIndex.size(), 10)` items, ensuring only the top 10 are displayed even if more data exists.
+</Note>
+
+---
+
+## LeaderBoardObject
+
+Data model for storing leaderboard-related information.
+
+**Package**: `project.avishkar.salesmanagement.Leaderboard`
+
+### Properties
+
+<ParamField path="SalespersonName" type="String">
+  Name of the salesperson
+</ParamField>
+
+<ParamField path="timestamp" type="String">
+  Unix timestamp of when the salesperson signed up
+</ParamField>
+
+### Constructor
+
+<CodeGroup>
+```java LeaderBoardObject.java
+public class LeaderBoardObject {
+    private String SalespersonName, timestamp;
+    
+    public LeaderBoardObject() {
+        // Default constructor for Firebase
+    }
+    
+    public LeaderBoardObject(
+        String salespersonName, 
+        String timestamp
+    ) {
+        this.SalespersonName = salespersonName;
+        this.timestamp = timestamp;
+    }
+    
+    public String getSalespersonName() {
+        return SalespersonName;
+    }
+    
+    public String getTimestamp() {
+        return timestamp;
+    }
+    
+    public void setSalespersonName(String salespersonName) {
+        SalespersonName = salespersonName;
+    }
+    
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
+    }
+}
+```
+</CodeGroup>
+
+## Firebase Structure
+
+The leaderboard system uses these Firebase paths:
+
+- **Salesperson/{id}**: Salesperson profile data
+- **Salesperson/{id}/Inventory**: Inventory items with profit data
+- **LeaderBoard**: Signup timestamps for PI calculation
+
+## Performance Metrics
+
+Key metrics calculated by the leaderboard:
+
+1. **Total Profit**: Sum of (items sold × profit per item)
+2. **Days Active**: Current time - signup timestamp (in days)
+3. **Performance Index**: Total Profit / Days Active
+4. **Target Profit**: Current PI + Gap to Top Performer + 10% buffer
+
+<Note>
+  The leaderboard uses synchronized methods (`ListenerRunner1`, `ListenerRunner2`, `ListenerRunner3`) to handle concurrent Firebase operations safely.
+</Note>

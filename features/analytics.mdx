@@ -1,0 +1,608 @@
+---
+title: Analytics & Performance Graphs
+description: Visual analytics dashboards with profit distribution charts and sales performance tracking for data-driven decision making
+---
+
+The Sales Management App provides comprehensive visual analytics to help managers and salespersons understand performance trends, profit distribution, and sales patterns.
+
+## Overview
+
+Analytics features are role-specific, providing insights relevant to each user type:
+
+<CardGroup cols={2}>
+  <Card title="Manager Analytics" icon="chart-pie">
+    Pie charts showing profit distribution across all inventory items and team performance
+  </Card>
+  <Card title="Salesperson Analytics" icon="chart-column">
+    Bar graphs tracking daily profit generation over time with trend analysis
+  </Card>
+</CardGroup>
+
+## Manager Analytics
+
+Managers access profit analysis through visual pie charts that break down revenue by product.
+
+### Accessing Manager Analytics
+
+<Steps>
+  <Step title="Open Navigation Drawer">
+    From the Manager dashboard, tap the hamburger menu icon.
+  </Step>
+  
+  <Step title="Select Statistics">
+    Tap "Statistics" in the navigation menu:
+    
+    ```java
+    else if (id == R.id.statistics) {
+        Intent intent = new Intent(ManagerMain.this, GraphManagerActivity.class);
+        startActivity(intent);
+    }
+    ```
+    
+    Source: `ManagerMain.java:348-350`
+  </Step>
+  
+  <Step title="View Profit Analysis">
+    The `GraphManagerActivity` loads and displays your profit distribution chart.
+  </Step>
+</Steps>
+
+### Pie Chart Components
+
+The manager analytics uses MPAndroidChart library for visualization:
+
+```java
+public class GraphManagerActivity extends AppCompatActivity {
+    private PieChart pieChart;
+    private ArrayList<PieEntry> entries;
+    private String id;
+    private ProgressBar progressBar;
+}
+```
+
+Source: `Graph/GraphManagerActivity.java:32-37`
+
+### Data Calculation
+
+The system calculates profit distribution across all inventory items:
+
+<Steps>
+  <Step title="Retrieve Inventory">
+    Fetch all inventory items for the current manager:
+    
+    ```java
+    final DatabaseReference databaseReference = FirebaseDatabase.getInstance()
+        .getReference("Manager");
+    databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for(final DataSnapshot snapshot : dataSnapshot.getChildren()){
+                if(snapshot.getKey().equals(id)){
+                    // Found current manager's data
+                }
+            }
+        }
+    });
+    ```
+    
+    Source: `Graph/GraphManagerActivity.java:54-60`
+  </Step>
+  
+  <Step title="Calculate Total Profit">
+    Sum profit from all inventory items:
+    
+    ```java
+    databaseReference.child(snapshot.getKey()).child("Inventory")
+        .addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                float total = 0.0f;
+                for(DataSnapshot snapshot1 : dataSnapshot.getChildren()){
+                    InventoryItem it = snapshot1.getValue(InventoryItem.class);
+                    total += it.getProfit() * it.getSold();
+                }
+            }
+        });
+    ```
+    
+    Source: `Graph/GraphManagerActivity.java:62-70`
+    
+    <Info>
+      Total profit = Sum of (Profit per unit × Quantity sold) for all items
+    </Info>
+  </Step>
+  
+  <Step title="Calculate Percentages">
+    Compute each item's percentage contribution:
+    
+    ```java
+    for(DataSnapshot snapshot1 : dataSnapshot.getChildren()) {
+        InventoryItem it = snapshot1.getValue(InventoryItem.class);
+        float curr = ((it.getProfit() * it.getSold()) / total) * 100.0f;
+        
+        if(curr > 0.0f)
+            entries.add(new PieEntry(curr, it.getItemName()));
+    }
+    ```
+    
+    Source: `Graph/GraphManagerActivity.java:72-78`
+    
+    **Formula:** `Percentage = (Item Profit ÷ Total Profit) × 100`
+  </Step>
+  
+  <Step title="Render Pie Chart">
+    Create and display the pie chart:
+    
+    ```java
+    PieDataSet set = new PieDataSet(entries, "Profit Results");
+    set.setValueTextSize(20f);
+    set.setColors(ColorTemplate.VORDIPLOM_COLORS);
+    
+    PieData data = new PieData(set);
+    data.setValueTextColor(Color.BLACK);
+    
+    pieChart.setData(data);
+    pieChart.invalidate(); // refresh
+    pieChart.setCenterText("Your Profit\nAnalysis");
+    pieChart.setCenterTextSize(20f);
+    pieChart.animateXY(1000, 1000, Easing.EasingOption.EaseInOutCirc, Easing.EasingOption.EaseInOutCirc);
+    ```
+    
+    Source: `Graph/GraphManagerActivity.java:82-91`
+  </Step>
+</Steps>
+
+### Chart Customization
+
+The pie chart includes several visual enhancements:
+
+```java
+pieChart.setCenterTextColor(Color.WHITE);
+pieChart.setTransparentCircleColor(getResources().getColor(R.color.colorPrimary));
+pieChart.setHoleColor(getResources().getColor(R.color.colorPrimaryDark));
+pieChart.setHighlightPerTapEnabled(true);
+
+Legend legend = pieChart.getLegend();
+legend.setWordWrapEnabled(true);
+legend.setTextSize(10);
+legend.setTextColor(getResources().getColor(R.color.colorPrimary));
+```
+
+Source: `Graph/GraphManagerActivity.java:92-99`
+
+<Tip>
+  Tap any pie slice to highlight that product and see its exact percentage contribution.
+</Tip>
+
+### Real-Time Updates
+
+The pie chart updates automatically when inventory changes:
+
+```java
+databaseReference.child(snapshot.getKey()).child("Inventory")
+    .addChildEventListener(new ChildEventListener() {
+        @Override
+        public void onChildChanged(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+            entries.clear();
+            progressBar.setVisibility(View.VISIBLE);
+            
+            // Recalculate and redraw chart
+            // ... calculation code ...
+            
+            pieChart.invalidate(); // refresh
+            progressBar.setVisibility(View.GONE);
+        }
+    });
+```
+
+Source: `Graph/GraphManagerActivity.java:109-161`
+
+<Note>
+  When a salesperson records a sale, the manager's pie chart automatically recalculates and updates the profit distribution.
+</Note>
+
+### What the Chart Shows
+
+<AccordionGroup>
+  <Accordion title="Profit Distribution">
+    Each pie slice represents the percentage of total profit contributed by a specific inventory item.
+    
+    **Example:**
+    - Total Profit: $10,000
+    - Laptop Sales Profit: $4,000 → 40% of pie
+    - Phone Sales Profit: $3,000 → 30% of pie
+    - Tablet Sales Profit: $2,000 → 20% of pie
+    - Accessories Profit: $1,000 → 10% of pie
+  </Accordion>
+  
+  <Accordion title="Color Coding">
+    The chart uses the ColorTemplate.VORDIPLOM_COLORS palette, assigning distinct colors to each product for easy differentiation.
+  </Accordion>
+  
+  <Accordion title="Legend">
+    A legend at the bottom lists all products with their corresponding colors, helping you identify each slice.
+  </Accordion>
+  
+  <Accordion title="Center Text">
+    The center displays "Your Profit Analysis" as the chart title.
+  </Accordion>
+</AccordionGroup>
+
+## Salesperson Analytics
+
+Salespersons view their performance through bar charts showing daily profit trends.
+
+### Accessing Salesperson Analytics
+
+<Steps>
+  <Step title="Open Navigation Drawer">
+    From the Salesperson dashboard, tap the hamburger menu.
+  </Step>
+  
+  <Step title="Select Statistics">
+    Tap "Statistics" in the navigation menu:
+    
+    ```java
+    else if (id1 == R.id.statistics) {
+        Intent intent = new Intent(SalespersonMain.this, GraphSalespersonActivity.class);
+        startActivity(intent);
+    }
+    ```
+    
+    Source: `SalespersonMain.java:464-467`
+  </Step>
+  
+  <Step title="View Performance Graph">
+    The `GraphSalespersonActivity` displays your profit over time.
+  </Step>
+</Steps>
+
+### Bar Chart Components
+
+The salesperson analytics uses a bar chart for time-series data:
+
+```java
+public class GraphSalespersonActivity extends AppCompatActivity {
+    private BarChart barChart;
+    private String id;
+    private ArrayList<BarEntry> entries;
+    private int flag, store;
+    private ProgressBar progressBar;
+}
+```
+
+Source: `Graph/GraphSalespersonActivity.java:32-38`
+
+### Data Retrieval
+
+Performance data is fetched from the GraphSalesperson collection:
+
+<Steps>
+  <Step title="Get Salesperson Name">
+    Retrieve the current user's name:
+    
+    ```java
+    final DatabaseReference databaseReference = FirebaseDatabase.getInstance()
+        .getReference("Salesperson");
+    databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for(DataSnapshot snapshot : dataSnapshot.getChildren()){
+                if(snapshot.getKey().equals(id)){
+                    final String salespersonName = snapshot.getValue(SalesPerson.class).getName();
+                }
+            }
+        }
+    });
+    ```
+    
+    Source: `Graph/GraphSalespersonActivity.java:56-64`
+  </Step>
+  
+  <Step title="Fetch Graph Data">
+    Query the GraphSalesperson collection for historical profit data:
+    
+    ```java
+    DatabaseReference reference1 = FirebaseDatabase.getInstance()
+        .getReference("GraphSalesperson");
+    reference1.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for(DataSnapshot snapshot1 : dataSnapshot.getChildren()){
+                GraphObject go = snapshot1.getValue(GraphObject.class);
+                if(go.getName().equals(salespersonName)){
+                    // Add to chart entries
+                }
+            }
+        }
+    });
+    ```
+    
+    Source: `Graph/GraphSalespersonActivity.java:67-88`
+  </Step>
+  
+  <Step title="Build Bar Entries">
+    Create bar entries with day offsets:
+    
+    ```java
+    if(flag == 0) {
+        entries.add(new BarEntry(0, Float.parseFloat(go.getProfit())));
+        flag = 1;
+        store = Integer.parseInt(go.getDate().substring(0,2));  // Store first day
+    } else {
+        int currentDay = ((Integer.parseInt(go.getDate().substring(0,2)) + 30) - store) % 30;
+        entries.add(new BarEntry(currentDay, Float.parseFloat(go.getProfit())));
+    }
+    ```
+    
+    Source: `Graph/GraphSalespersonActivity.java:76-86`
+    
+    <Info>
+      The X-axis represents days since your first recorded sale, with day 0 being your first sale date.
+    </Info>
+  </Step>
+  
+  <Step title="Render Bar Chart">
+    Display the bar chart with customization:
+    
+    ```java
+    BarDataSet dataSet = new BarDataSet(entries, "Profit");
+    dataSet.setValueTextSize(15f);
+    dataSet.setColors(ColorTemplate.VORDIPLOM_COLORS);
+    
+    BarData data = new BarData(dataSet);
+    data.setBarWidth(0.9f);
+    
+    barChart.animateY(3000, Easing.EasingOption.EaseInBounce);
+    barChart.setData(data);
+    barChart.setFitBars(true);
+    barChart.invalidate();
+    ```
+    
+    Source: `Graph/GraphSalespersonActivity.java:91-99`
+  </Step>
+</Steps>
+
+### Graph Data Model
+
+Sales data points are stored as GraphObject instances:
+
+```java
+public class GraphObject {
+    private String profit;  // Profit amount for this data point
+    private String date;    // Date of the sale
+    private String name;    // Salesperson name
+}
+```
+
+### Recording Graph Data
+
+When a salesperson records a sale, the profit is added to the graph:
+
+```java
+if(sold > 0) {
+    GraphSalesperson.create(
+        String.valueOf(it1.getProfit() * sold), 
+        salespersonName
+    );
+}
+```
+
+Source: `SalespersonMain.java:179-186`
+
+The `GraphSalesperson.create()` method:
+- Stores the profit amount
+- Records the current date
+- Associates with the salesperson's name
+- Adds to Firebase for chart rendering
+
+### Axis Customization
+
+The bar chart includes detailed axis formatting:
+
+```java
+// X-Axis (Days)
+XAxis xAxis = barChart.getXAxis();
+xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+xAxis.setTextSize(15f);
+xAxis.setGranularity(1f);
+xAxis.setTextColor(getResources().getColor(R.color.colorPrimary));
+xAxis.setDrawAxisLine(true);
+xAxis.setDrawGridLines(false);
+
+// Y-Axis Left (Profit)
+YAxis yAxisL = barChart.getAxisLeft();
+yAxisL.setTextColor(getResources().getColor(R.color.colorPrimary));
+
+// Y-Axis Right
+YAxis yAxisR = barChart.getAxisRight();
+yAxisR.setTextColor(getResources().getColor(R.color.colorPrimary));
+
+// Legend
+Legend legend = barChart.getLegend();
+legend.setTextColor(getResources().getColor(R.color.colorPrimary));
+legend.setTextSize(12);
+legend.setWordWrapEnabled(true);
+```
+
+Source: `Graph/GraphSalespersonActivity.java:102-119`
+
+### What the Chart Shows
+
+<AccordionGroup>
+  <Accordion title="X-Axis: Days Since First Sale">
+    The horizontal axis shows days elapsed since your first recorded sale:
+    - Day 0: Your first sale date
+    - Day 1-29: Subsequent days in the current month
+    - Cycles through 30-day periods
+  </Accordion>
+  
+  <Accordion title="Y-Axis: Profit Amount">
+    The vertical axis displays the profit generated on each day:
+    - Higher bars = More profitable days
+    - Bar height corresponds to total profit for that day
+    - Multiple sales on the same day are aggregated
+  </Accordion>
+  
+  <Accordion title="Bar Colors">
+    Bars use the VORDIPLOM color scheme, with different colors for visual variety.
+  </Accordion>
+  
+  <Accordion title="Animation">
+    The chart animates with a bounce effect over 3 seconds when first loaded, making data easier to digest.
+  </Accordion>
+</AccordionGroup>
+
+## Analytics Use Cases
+
+<AccordionGroup>
+  <Accordion title="Manager: Identifying Top Products">
+    **Workflow:**
+    1. Open Manager Statistics
+    2. Review pie chart slices
+    3. Identify largest slices (highest profit contributors)
+    4. Focus inventory and marketing on these products
+    5. Consider adding similar items
+    6. Analyze underperforming products (small slices)
+    
+    **Decision Making:**
+    - Allocate more inventory to high-profit items
+    - Provide additional training on top products
+    - Discontinue consistently low-performing items
+  </Accordion>
+  
+  <Accordion title="Manager: Profit Distribution Analysis">
+    **Workflow:**
+    1. Check if profit is concentrated in few items
+    2. Look for diversification opportunities
+    3. Compare current chart with previous periods
+    4. Set targets to balance profit sources
+    
+    **Insights:**
+    - Over-reliance on single product = Risk
+    - Balanced distribution = Stable revenue
+    - Seasonal variations in product performance
+  </Accordion>
+  
+  <Accordion title="Salesperson: Tracking Performance Trends">
+    **Workflow:**
+    1. Open Salesperson Statistics
+    2. Review bar chart for trends
+    3. Identify high-performance days
+    4. Look for patterns (weekly, monthly)
+    5. Compare recent performance to earlier periods
+    
+    **Insights:**
+    - Upward trend = Improving performance
+    - Consistent bars = Steady sales rhythm
+    - Gaps = Days with no sales (identify why)
+    - Spikes = Exceptional days (learn what worked)
+  </Accordion>
+  
+  <Accordion title="Salesperson: Goal Setting">
+    **Workflow:**
+    1. View your average bar height
+    2. Identify your highest profit day
+    3. Set goal to consistently reach that level
+    4. Track progress over coming weeks
+    5. Adjust strategies based on results
+    
+    **Strategy:**
+    - Use analytics as motivation
+    - Aim to eliminate low-performance days
+    - Replicate successful days
+    - Build consistent high-performance habits
+  </Accordion>
+</AccordionGroup>
+
+## Loading States
+
+Both analytics screens show progress indicators during data loading:
+
+```java
+progressBar = findViewById(R.id.progressBar12);  // or progressBar13 for salesperson
+progressBar.setVisibility(View.VISIBLE);
+
+// ... data loading and calculations ...
+
+progressBar.setVisibility(View.GONE);
+```
+
+Source: `Graph/GraphManagerActivity.java:47-81` and `Graph/GraphSalespersonActivity.java:47-90`
+
+<Tip>
+  Large datasets may take a few seconds to load and render. The progress bar provides visual feedback during this time.
+</Tip>
+
+## Technical Implementation
+
+### MPAndroidChart Library
+
+The app uses the MPAndroidChart library for professional chart rendering:
+
+- **PieChart**: Manager profit distribution
+- **BarChart**: Salesperson performance over time
+- **Animations**: Smooth chart loading
+- **Gestures**: Pinch-to-zoom, tap-to-highlight
+- **Legends**: Automatic color coding
+
+### Firebase Integration
+
+Charts pull data directly from Firebase Realtime Database:
+
+**Manager Data:**
+```
+Manager/
+  ├─ {managerId}/
+  │   └─ Inventory/
+  │       ├─ {itemId1}/
+  │       │   ├─ itemName: "Laptop"
+  │       │   ├─ sold: 10
+  │       │   └─ profit: 100
+```
+
+**Salesperson Data:**
+```
+GraphSalesperson/
+  ├─ {entryId1}/
+  │   ├─ name: "John Doe"
+  │   ├─ profit: "500"
+  │   └─ date: "01/03/2024"
+  ├─ {entryId2}/
+  │   ├─ name: "John Doe"
+  │   ├─ profit: "750"
+  │   └─ date: "02/03/2024"
+```
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Review" icon="calendar-check">
+    Check analytics weekly to spot trends early and adjust strategies
+  </Card>
+  
+  <Card title="Compare Periods" icon="code-compare">
+    Take screenshots of charts to compare performance month-over-month
+  </Card>
+  
+  <Card title="Data-Driven Decisions" icon="lightbulb">
+    Use charts to guide inventory, training, and sales focus
+  </Card>
+  
+  <Card title="Team Discussions" icon="users">
+    Share analytics insights in team meetings for collective improvement
+  </Card>
+</CardGroup>
+
+## Limitations
+
+<Warning>
+  - Bar chart X-axis cycles every 30 days (may not align with calendar months)
+  - No date range selection (shows all available data)
+  - Cannot export chart images or data
+  - Historical data limited to what's stored in Firebase
+</Warning>
+
+<Info>
+  For detailed profit breakdowns beyond what charts show, navigate to individual inventory items or use the "My Team" feature to drill down into specific salesperson performance.
+</Info>

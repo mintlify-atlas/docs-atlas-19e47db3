@@ -1,0 +1,266 @@
+---
+title: ManagerMain Activity
+description: Main dashboard activity for managers to manage inventory, team, and navigate the application
+---
+
+## Overview
+
+The `ManagerMain` activity serves as the primary dashboard for managers in the Sales Management application. It provides comprehensive inventory management capabilities, team oversight, and access to various manager-specific features through a navigation drawer interface.
+
+**Package:** `project.avishkar.salesmanagement`
+
+**Extends:** `AppCompatActivity`
+
+**Implements:** `NavigationView.OnNavigationItemSelectedListener`
+
+## Key Features
+
+- Inventory management with real-time Firebase synchronization
+- Add new inventory items with profit tracking
+- SwipeRefresh support for manual data updates
+- Navigation drawer with manager profile header
+- Team management and statistics access
+- Chat room and invite code sharing
+
+## UI Components
+
+### Primary Views
+
+```java
+private RecyclerView mRecyclerView;           // Displays inventory items
+private RecyclerView.Adapter mAdapter;         // InventoryAdapter instance
+private SwipeRefreshLayout swipeRefreshLayout; // Pull-to-refresh functionality
+private ProgressBar spinner;                   // Loading indicator
+private FloatingActionButton fab;              // Add item button
+```
+
+### Input Fields (Dialog)
+
+```java
+private EditText itemName;  // Item name input
+private EditText profit;    // Profit per unit input
+private MeterView q;        // Quantity picker
+```
+
+## Lifecycle Methods
+
+### onCreate(Bundle savedInstanceState)
+
+Initializes the activity, sets up the UI, and loads manager data from Firebase.
+
+```java
+@Override
+protected void onCreate(Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.activity_manager_main);
+    Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+    setSupportActionBar(toolbar);
+    
+    SessionManager sm = new SessionManager(getApplicationContext());
+    HashMap<String, String> details = sm.getUserDetails();
+    final String id = details.get("id");
+    final String role = details.get("role");
+    
+    updateList(id, role, true);
+}
+```
+
+<Note>
+The `onCreate` method retrieves the current manager's ID and role from `SessionManager` and immediately loads the inventory list with a progress spinner.
+</Note>
+
+### onBackPressed()
+
+Overrides the default back button behavior to show a confirmation dialog before exiting.
+
+```java
+@Override
+public void onBackPressed() {
+    DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+    if (drawer.isDrawerOpen(GravityCompat.START)) {
+        drawer.closeDrawer(GravityCompat.START);
+    } else {
+        // Shows FancyAlertDialog with exit confirmation
+    }
+}
+```
+
+## Firebase Integration
+
+### Database Reference
+
+```java
+private DatabaseReference databaseRef;
+```
+
+### Loading Inventory
+
+Retrieves inventory items from Firebase Realtime Database:
+
+```java
+databaseRef = FirebaseDatabase.getInstance().getReference(role);
+final ArrayList<InventoryItem> list = new ArrayList<>();
+databaseRef.child(id).child("Inventory")
+    .addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                InventoryItem it1 = snapshot.getValue(InventoryItem.class);
+                list.add(it1);
+            }
+            mAdapter = new InventoryAdapter(getApplicationContext(), list, ManagerMain.this);
+            mRecyclerView.setAdapter(mAdapter);
+        }
+    });
+```
+
+### Adding Inventory Items
+
+When a manager adds a new item, it's automatically distributed to all salespersons under that manager:
+
+```java
+// Add to manager's inventory
+String key = databaseRef.child(id).child("Inventory").push().getKey();
+databaseRef.child(id).child("Inventory").child(key).setValue(it);
+
+// Propagate to all salespersons with matching manager name
+final DatabaseReference databaseRef1 = FirebaseDatabase.getInstance().getReference("Salesperson");
+databaseRef1.addListenerForSingleValueEvent(new ValueEventListener() {
+    @Override
+    public void onDataChange(@NonNull DataSnapshot dataSnapshot2) {
+        for(DataSnapshot snapshot1 : dataSnapshot2.getChildren()) {
+            SalesPerson sp1 = snapshot1.getValue(SalesPerson.class);
+            if(sp1.getManagerName().equals(ManagerName)) {
+                String key1 = databaseRef1.child(salesperson_id).child("Inventory").push().getKey();
+                databaseRef1.child(salesperson_id).child("Inventory").child(key1).setValue(it);
+            }
+        }
+    }
+});
+```
+
+<Info>
+When a manager adds an inventory item, the system automatically creates the same item in the inventory of all salespersons assigned to that manager, ensuring synchronized product availability across the team.
+</Info>
+
+## Navigation Menu Items
+
+### onNavigationItemSelected(MenuItem item)
+
+Handles navigation drawer menu selections:
+
+| Menu Item | Action | Destination |
+|-----------|--------|-------------|
+| `dashboard` | Stay on current screen | ManagerMain |
+| `my_account` | View/edit account details | AccountManager.class |
+| `my_team` | View team members | MyTeam.class |
+| `statistics` | View sales graphs | GraphManagerActivity.class |
+| `nav_share` | Share app APK | System share intent |
+| `nav_send` | Share invite code | Text sharing intent |
+| `chat_room` | Open team chat | ChatRoom.class |
+
+### Invite Code Sharing
+
+Managers can share their name as an invite code for salespersons:
+
+```java
+String shareBody = "Hey, signup using my name - " + 
+                   snapshot.getValue(SalesManager.class).getName() + 
+                   " on SalesManagement App.";
+Intent sharingIntent = new Intent(android.content.Intent.ACTION_SEND);
+sharingIntent.setType("text/plain");
+sharingIntent.putExtra(android.content.Intent.EXTRA_TEXT, shareBody);
+startActivity(Intent.createChooser(sharingIntent, "Send invite"));
+```
+
+## Key Methods
+
+### updateList(String id, String role, boolean spin)
+
+Refreshes the inventory list from Firebase.
+
+**Parameters:**
+- `id` - Manager's unique identifier
+- `role` - User role ("Manager")
+- `spin` - Whether to show loading spinner
+
+```java
+private void updateList(String id, String role, final boolean spin) {
+    if(spin == true)
+        spinner.setVisibility(View.VISIBLE);
+    
+    databaseRef = FirebaseDatabase.getInstance().getReference(role);
+    mRecyclerView = findViewById(R.id.items_list);
+    final ArrayList<InventoryItem> list = new ArrayList<>();
+    
+    databaseRef.child(id).child("Inventory")
+        .addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(DataSnapshot dataSnapshot) {
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    InventoryItem it1 = snapshot.getValue(InventoryItem.class);
+                    list.add(it1);
+                }
+                mAdapter = new InventoryAdapter(getApplicationContext(), list, ManagerMain.this);
+                mRecyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+                mRecyclerView.setAdapter(mAdapter);
+                mAdapter.notifyDataSetChanged();
+                if(spin == true)
+                    spinner.setVisibility(View.GONE);
+            }
+        });
+}
+```
+
+<Note>
+The `updateList` method is called both during initial activity creation and when the user performs a swipe-to-refresh gesture.
+</Note>
+
+## SwipeRefresh Integration
+
+Enables pull-to-refresh functionality:
+
+```java
+swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+    @Override
+    public void onRefresh() {
+        updateList(id, role, false);
+        swipeRefreshLayout.setRefreshing(false);
+    }
+});
+```
+
+## Navigation Drawer Header
+
+Displays manager information in the drawer header:
+
+```java
+View headView = navigationView.getHeaderView(0);
+final TextView headerManagerName = headView.findViewById(R.id.ManagerName);
+final TextView headerManagerEmail = headView.findViewById(R.id.ManagerMail);
+final ImageView headerManagerImage = headView.findViewById(R.id.imageView);
+
+DatabaseReference reference = FirebaseDatabase.getInstance().getReference("Manager");
+reference.addListenerForSingleValueEvent(new ValueEventListener() {
+    @Override
+    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+        for(DataSnapshot snapshot : dataSnapshot.getChildren()) {
+            if(snapshot.getKey().equals(id)) {
+                SalesManager sm = snapshot.getValue(SalesManager.class);
+                headerManagerName.setText(sm.getName());
+                headerManagerEmail.setText(sm.getEmail());
+                ImageSetter.setImage(getApplicationContext(), headerManagerImage, sm.getEmail(), spinner);
+            }
+        }
+    }
+});
+```
+
+## Related Classes
+
+- `InventoryItem` - Data model for inventory items
+- `InventoryAdapter` - RecyclerView adapter for displaying inventory
+- `SalesManager` - Data model for manager information
+- `SalesPerson` - Data model for salesperson information
+- `SessionManager` - Manages user session data
+- `ImageSetter` - Utility for loading profile images

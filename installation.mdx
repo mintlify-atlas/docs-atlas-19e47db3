@@ -1,0 +1,403 @@
+---
+title: Installation
+description: Set up your development environment for the Sales Management App with Android Studio, Gradle dependencies, and Firebase configuration
+---
+
+## Prerequisites
+
+Before you begin, ensure you have the following installed:
+
+<CardGroup cols={2}>
+  <Card title="Android Studio" icon="android">
+    Version 3.1.4 or higher
+  </Card>
+  <Card title="Java Development Kit" icon="java">
+    JDK 8 or higher
+  </Card>
+  <Card title="Android SDK" icon="mobile">
+    API Level 22 (Lollipop) minimum
+  </Card>
+  <Card title="Firebase Account" icon="fire">
+    Free tier is sufficient
+  </Card>
+</CardGroup>
+
+## Step 1: Install Android Studio
+
+<Steps>
+  <Step title="Download Android Studio">
+    Download Android Studio from the [official website](https://developer.android.com/studio).
+    
+    <Note>
+      The Sales Management App uses Android Studio 3.1.4 with Gradle 3.1.4. Newer versions should work but may require dependency updates.
+    </Note>
+  </Step>
+  
+  <Step title="Install SDK Components">
+    Launch Android Studio and install the following SDK components:
+    
+    - Android SDK Platform 26 (Oreo)
+    - Android SDK Build-Tools 27.0.3
+    - Android Support Repository
+    - Google Repository
+    
+    Navigate to **Tools > SDK Manager** to install these components.
+  </Step>
+  
+  <Step title="Configure SDK Path">
+    Verify your SDK path is correctly set:
+    
+    ```bash
+    # Linux/Mac
+    export ANDROID_HOME=$HOME/Android/Sdk
+    export PATH=$PATH:$ANDROID_HOME/tools:$ANDROID_HOME/platform-tools
+    
+    # Windows
+    setx ANDROID_HOME "%USERPROFILE%\AppData\Local\Android\Sdk"
+    ```
+  </Step>
+</Steps>
+
+## Step 2: Configure Gradle Dependencies
+
+The project uses specific Gradle configurations. Here's the complete setup:
+
+### Project-Level build.gradle
+
+<CodeGroup>
+```groovy build.gradle (Project)
+buildscript {
+    repositories {
+        google()
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.1.4'
+        classpath 'com.google.gms:google-services:4.0.1'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven {
+            url 'https://maven.google.com'
+        }
+    }
+}
+```
+
+```groovy app/build.gradle
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    buildToolsVersion '27.0.3'
+    
+    defaultConfig {
+        applicationId "project.avishkar.salesmanagement"
+        minSdkVersion 22
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+    }
+}
+
+dependencies {
+    // Core Android
+    implementation 'com.android.support:appcompat-v7:26.1.0'
+    implementation 'com.android.support.constraint:constraint-layout:1.1.2'
+    implementation 'com.android.support:design:27.1.0'
+    implementation 'com.android.support:support-v4:26'
+    
+    // Firebase
+    implementation 'com.google.firebase:firebase-core:16.0.1'
+    implementation 'com.google.firebase:firebase-database:16.0.1'
+    implementation 'com.google.firebase:firebase-storage:16.0.1'
+    implementation 'com.google.firebase:firebase-auth:16.0.1'
+    implementation 'com.firebaseui:firebase-ui-storage:4.1.0'
+    
+    // Charts & UI
+    implementation 'com.github.PhilJay:MPAndroidChart:v3.0.3'
+    implementation 'com.github.Shashank02051997:FancyAlertDialog-Android:0.1'
+    implementation 'com.baoyz.swipemenulistview:library:1.3.0'
+    implementation 'com.alex-zaitsev:meternumberpicker:1.0.4'
+    implementation 'com.jackandphantom.android:circularprogressbar:1.2.0'
+    
+    // Image Loading
+    implementation 'com.github.bumptech.glide:glide:4.8.0'
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.8.0'
+    
+    // Networking
+    compile 'com.squareup.okhttp3:okhttp:3.4.1'
+    
+    // Testing
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:0.5'
+}
+
+apply plugin: 'com.google.gms.google-services'
+```
+</CodeGroup>
+
+<Warning>
+  The project uses `compile` instead of `implementation` for some dependencies. While deprecated, this is intentional for compatibility with the project's Gradle version.
+</Warning>
+
+### Key Dependencies Explained
+
+<AccordionGroup>
+  <Accordion title="Firebase Suite (firebase-*)">
+    - **firebase-core**: Analytics and core Firebase functionality
+    - **firebase-database**: Real-time database for chat, inventory, and user data
+    - **firebase-storage**: Cloud storage for profile images and attachments
+    - **firebase-auth**: Email/password authentication
+    - **firebase-ui-storage**: UI components for Firebase Storage
+  </Accordion>
+  
+  <Accordion title="MPAndroidChart">
+    Powerful charting library used for:
+    - Line graphs showing salesperson progress over time
+    - Pie charts for manager profit analysis
+    - Customizable chart styling and animations
+  </Accordion>
+  
+  <Accordion title="Glide">
+    Image loading and caching library with automatic:
+    - Image compression before Firebase upload
+    - Memory and disk caching
+    - Placeholder and error image handling
+  </Accordion>
+  
+  <Accordion title="SwipeMenuListView">
+    Custom ListView implementation enabling swipe gestures for:
+    - Deleting inventory items
+    - Managing chat conversations
+    - Quick actions on list items
+  </Accordion>
+</AccordionGroup>
+
+## Step 3: Firebase Configuration
+
+Firebase powers authentication, database, and storage. Follow these steps to set up your Firebase project:
+
+<Steps>
+  <Step title="Create Firebase Project">
+    1. Go to [Firebase Console](https://console.firebase.google.com/)
+    2. Click **Add Project**
+    3. Enter project name (e.g., "sales-management-app")
+    4. Accept terms and click **Create Project**
+  </Step>
+  
+  <Step title="Add Android App">
+    In your Firebase project:
+    
+    1. Click the Android icon to add an Android app
+    2. Enter package name: `project.avishkar.salesmanagement`
+    3. (Optional) Add app nickname: "Sales Management"
+    4. Click **Register App**
+    
+    <Note>
+      The package name must match exactly as defined in `app/build.gradle`'s `applicationId`.
+    </Note>
+  </Step>
+  
+  <Step title="Download google-services.json">
+    1. Download the `google-services.json` file
+    2. Place it in your project's `app/` directory:
+    
+    ```bash
+    your-project/
+    ├── app/
+    │   ├── google-services.json  # Place here
+    │   ├── build.gradle
+    │   └── src/
+    ├── build.gradle
+    └── settings.gradle
+    ```
+    
+    <Warning>
+      Never commit `google-services.json` to version control if it contains production credentials. Use different files for development and production.
+    </Warning>
+  </Step>
+  
+  <Step title="Enable Authentication">
+    In Firebase Console, navigate to **Authentication > Sign-in method**:
+    
+    1. Click **Email/Password**
+    2. Enable both toggles:
+       - Email/Password
+       - Email link (passwordless sign-in)
+    3. Click **Save**
+    
+    ```java MainActivity.java:126
+    // The app uses Firebase Authentication
+    auth.signInWithEmailAndPassword(email, password)
+        .addOnCompleteListener(MainActivity.this, new OnCompleteListener<AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<AuthResult> task) {
+                if (task.isSuccessful()) {
+                    // Authentication successful
+                }
+            }
+        });
+    ```
+  </Step>
+  
+  <Step title="Set Up Realtime Database">
+    Navigate to **Database > Realtime Database**:
+    
+    1. Click **Create Database**
+    2. Choose location (e.g., us-central1)
+    3. Start in **Test Mode** for development
+    4. Click **Enable**
+    
+    The app expects this database structure:
+    
+    ```json
+    {
+      "Manager": {
+        "userId1": {
+          "email": "manager@example.com",
+          "name": "John Manager",
+          "phone": "+1234567890"
+        }
+      },
+      "Salesperson": {
+        "userId2": {
+          "emailId": "sales@example.com",
+          "name": "Jane Sales",
+          "phone": "+0987654321"
+        }
+      },
+      "Inventory": {
+        "itemId1": {
+          "itemName": "Product A",
+          "total_available": 100,
+          "sold": 25,
+          "profit": 75
+        }
+      }
+    }
+    ```
+  </Step>
+  
+  <Step title="Configure Firebase Storage">
+    Navigate to **Storage**:
+    
+    1. Click **Get Started**
+    2. Use default security rules for development
+    3. Click **Done**
+    
+    The app uses this storage structure:
+    
+    ```java Constants.java:4
+    public static final String STORAGE_PATH_UPLOADS = "uploads/";
+    public static final String DATABASE_UPLOADS = "uploads";
+    ```
+    
+    Profile images and attachments are stored in the `uploads/` directory.
+  </Step>
+</Steps>
+
+## Step 4: Repository Setup
+
+The project requires JitPack and Maven Central for third-party libraries:
+
+<CodeGroup>
+```groovy repositories
+repositories {
+    maven { url "https://jitpack.io" }
+    mavenCentral()
+    google()
+    jcenter()
+}
+```
+</CodeGroup>
+
+<Tip>
+  If you encounter build errors, try:
+  1. **File > Invalidate Caches / Restart**
+  2. Run `./gradlew clean` from terminal
+  3. Sync Gradle files again
+</Tip>
+
+## Step 5: Verify Installation
+
+Run these commands to verify everything is set up correctly:
+
+```bash
+# Check Gradle wrapper
+./gradlew --version
+
+# Build the project
+./gradlew build
+
+# List available tasks
+./gradlew tasks
+
+# Run tests
+./gradlew test
+```
+
+Expected output:
+```
+> Task :app:compileDebugJavaWithJavac
+> Task :app:mergeDebugResources
+> Task :app:processDebugManifest
+
+BUILD SUCCESSFUL in 45s
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Gradle Sync Failed">
+    **Problem**: "Failed to resolve: com.google.firebase:firebase-core:16.0.1"
+    
+    **Solution**:
+    ```bash
+    # Add Google Maven repository
+    # In build.gradle (Project)
+    allprojects {
+        repositories {
+            google()  # Must be first
+            jcenter()
+        }
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="google-services.json Not Found">
+    **Problem**: "File google-services.json is missing"
+    
+    **Solution**:
+    1. Ensure file is in `app/` directory (not root)
+    2. Check filename is exactly `google-services.json`
+    3. Verify package name matches Firebase configuration
+  </Accordion>
+  
+  <Accordion title="Build Tools Version Mismatch">
+    **Problem**: "Failed to find Build Tools revision 27.0.3"
+    
+    **Solution**:
+    ```bash
+    # Install via SDK Manager or command line
+    sdkmanager "build-tools;27.0.3"
+    ```
+  </Accordion>
+  
+  <Accordion title="Minimum SDK Version Error">
+    **Problem**: Device API level too low
+    
+    **Solution**:
+    The app requires API 22 (Android 5.1) minimum. Use an emulator or device with Android 5.1 or higher.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+<Card title="Quick Start Guide" icon="rocket" href="/quickstart">
+  Now that your environment is configured, learn how to clone the repository and run the app for the first time.
+</Card>

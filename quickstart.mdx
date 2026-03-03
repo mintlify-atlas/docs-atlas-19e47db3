@@ -1,80 +1,460 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: Quick Start
+description: Get the Sales Management App running on your device in minutes - from cloning to your first login
 ---
 
-## Get started in three steps
+## Overview
 
-Get your documentation site running locally and make your first customization.
-
-### Step 1: Set up your local environment
-
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
-
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
-
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 3: Go live
-
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
-
-## Next steps
-
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
+This guide will walk you through cloning the repository, building the app, and logging in for the first time. By the end, you'll have the app running on an Android device or emulator with a test user account.
 
 <Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
+  Before starting, ensure you've completed the [Installation](/installation) guide with Android Studio and Firebase configured.
+</Note>
+
+## Step 1: Clone the Repository
+
+<Steps>
+  <Step title="Clone from GitHub">
+    Open your terminal and run:
+    
+    ```bash
+    git clone https://github.com/gargmehul10/Sales-Management-App.git
+    cd Sales-Management-App
+    ```
+  </Step>
+  
+  <Step title="Verify Project Structure">
+    Ensure the project structure looks like this:
+    
+    ```
+    Sales-Management-App/
+    ├── app/
+    │   ├── build.gradle
+    │   ├── google-services.json  # Add your Firebase config here
+    │   └── src/
+    │       └── main/
+    │           ├── AndroidManifest.xml
+    │           ├── java/
+    │           │   └── project/avishkar/salesmanagement/
+    │           │       ├── Registration/
+    │           │       │   ├── MainActivity.java
+    │           │       │   ├── SignUpSalesManager.java
+    │           │       │   └── SignUpSalesperson.java
+    │           │       ├── ManagerMain.java
+    │           │       ├── SalespersonMain.java
+    │           │       ├── Chat/
+    │           │       ├── Graph/
+    │           │       ├── Leaderboard/
+    │           │       └── InventoryItem.java
+    │           └── res/
+    ├── build.gradle
+    ├── settings.gradle
+    └── gradle.properties
+    ```
+  </Step>
+  
+  <Step title="Add Firebase Configuration">
+    Copy your `google-services.json` file into the `app/` directory:
+    
+    ```bash
+    cp ~/Downloads/google-services.json app/
+    ```
+    
+    <Warning>
+      The app will not build without a valid `google-services.json` file. See [Firebase Configuration](/installation#step-3-firebase-configuration) if you haven't set this up yet.
+    </Warning>
+  </Step>
+</Steps>
+
+## Step 2: Build the Project
+
+<Steps>
+  <Step title="Open in Android Studio">
+    1. Launch Android Studio
+    2. Click **Open an Existing Project**
+    3. Navigate to the cloned directory and click **OK**
+    4. Wait for Gradle sync to complete
+  </Step>
+  
+  <Step title="Sync Gradle Files">
+    If Gradle doesn't sync automatically:
+    
+    1. Click **File > Sync Project with Gradle Files**
+    2. Wait for dependencies to download (first time may take 5-10 minutes)
+    
+    You should see output like:
+    ```
+    Gradle sync finished in 1m 23s
+    ```
+  </Step>
+  
+  <Step title="Build the Application">
+    Build the app to verify everything works:
+    
+    ```bash
+    # From terminal
+    ./gradlew assembleDebug
+    
+    # Or in Android Studio
+    # Build > Make Project (Ctrl+F9)
+    ```
+    
+    Expected output:
+    ```
+    > Task :app:compileDebugJavaWithJavac
+    > Task :app:mergeDebugResources
+    > Task :app:processDebugGoogleServices
+    > Task :app:packageDebug
+    
+    BUILD SUCCESSFUL in 1m 45s
+    47 tasks executed
+    ```
+  </Step>
+</Steps>
+
+## Step 3: Set Up an Emulator or Device
+
+You can run the app on an Android emulator or physical device:
+
+<Tabs>
+  <Tab title="Android Emulator">
+    <Steps>
+      <Step title="Create a Virtual Device">
+        1. In Android Studio, click **Tools > AVD Manager**
+        2. Click **Create Virtual Device**
+        3. Select a device (e.g., Pixel 3)
+        4. Choose a system image:
+           - **Recommended**: Oreo (API 26) or higher
+           - **Minimum**: Lollipop (API 22)
+        5. Click **Finish**
+      </Step>
+      
+      <Step title="Launch Emulator">
+        In AVD Manager, click the play button next to your device.
+        
+        Wait for the emulator to boot completely (30-60 seconds).
+      </Step>
+    </Steps>
+  </Tab>
+  
+  <Tab title="Physical Device">
+    <Steps>
+      <Step title="Enable Developer Options">
+        On your Android device:
+        
+        1. Go to **Settings > About Phone**
+        2. Tap **Build Number** 7 times
+        3. You'll see "You are now a developer!"
+      </Step>
+      
+      <Step title="Enable USB Debugging">
+        1. Go to **Settings > Developer Options**
+        2. Enable **USB Debugging**
+        3. Connect device via USB
+        4. Accept the debugging prompt on your device
+      </Step>
+      
+      <Step title="Verify Connection">
+        ```bash
+        adb devices
+        ```
+        
+        You should see:
+        ```
+        List of devices attached
+        ABC123XYZ456    device
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Step 4: Run the Application
+
+<Steps>
+  <Step title="Deploy to Device">
+    <CodeGroup>
+    ```bash Android Studio
+    # Click the green play button in toolbar
+    # Or press Shift+F10
+    ```
+    
+    ```bash Command Line
+    ./gradlew installDebug
+    adb shell am start -n project.avishkar.salesmanagement/.Registration.MainActivity
+    ```
+    </CodeGroup>
+    
+    The app will install and launch automatically.
+  </Step>
+  
+  <Step title="Verify Launch Screen">
+    You should see the login screen with:
+    - Email and password input fields
+    - Radio buttons for Manager/Salesperson selection
+    - Login button
+    - "Sign up as a Manager" link
+    - "Sign up as a Salesperson" link
+    
+    <img src="/images/login-screen.png" alt="Login Screen" />
+  </Step>
+</Steps>
+
+## Step 5: Create Your First Account
+
+Let's create a test Sales Manager account:
+
+<Steps>
+  <Step title="Navigate to Manager Sign Up">
+    1. On the login screen, tap **"Sign up as a Manager"**
+    2. You'll be taken to the Manager registration form
+  </Step>
+  
+  <Step title="Fill Registration Form">
+    Enter the following details:
+    
+    - **Name**: Test Manager
+    - **Email**: manager@test.com
+    - **Password**: test1234 (minimum 6 characters)
+    - **Phone**: +1234567890
+    - **Company**: Test Company
+    
+    <Note>
+      Password must be at least 6 characters as enforced by Firebase Authentication:
+      
+      ```java MainActivity.java:133
+      if (password.length() < 6) {
+          inputPassword.setError(getString(R.string.minimum_password));
+      }
+      ```
+    </Note>
+  </Step>
+  
+  <Step title="Complete Registration">
+    1. Tap **Sign Up**
+    2. Wait for Firebase to create the account (2-3 seconds)
+    3. You'll be automatically logged in and redirected to the Manager dashboard
+  </Step>
+  
+  <Step title="Explore Manager Dashboard">
+    You're now in the Manager interface! You can:
+    
+    - **My Team**: View all salespersons (empty initially)
+    - **Inventory**: Add and manage products
+    - **Chat**: Access global chat room
+    - **Graphs**: View profit analysis (requires inventory data)
+    - **Leaderboard**: See top 10 salespersons
+    - **Profile**: Update your account details
+  </Step>
+</Steps>
+
+## Step 6: Test Core Features
+
+Let's add some inventory to see the app in action:
+
+<Steps>
+  <Step title="Add Inventory Item">
+    1. Tap **Inventory** from the navigation menu
+    2. Tap the **+** button (floating action button)
+    3. Enter item details:
+       - **Name**: Laptop
+       - **Total Available**: 100
+       - **Sold**: 25
+       - **Profit per unit**: 200
+    4. Tap **Save**
+    
+    The inventory list will update with your new item:
+    
+    ```java InventoryItem.java:11
+    public InventoryItem(String itemName, int total_available, int sold, int profit) {
+        this.itemName = itemName;
+        this.total_available = total_available;
+        this.sold = sold;
+        this.profit = profit;
+    }
+    ```
+  </Step>
+  
+  <Step title="View in Firebase Console">
+    Open your Firebase Console and navigate to **Realtime Database**:
+    
+    ```json
+    {
+      "Inventory": {
+        "itemId_xyz": {
+          "itemName": "Laptop",
+          "total_available": 100,
+          "sold": 25,
+          "profit": 200
+        }
+      },
+      "Manager": {
+        "userId_abc": {
+          "email": "manager@test.com",
+          "name": "Test Manager",
+          "phone": "+1234567890"
+        }
+      }
+    }
+    ```
+    
+    <Tip>
+      All data syncs in real-time. Changes in Firebase Console appear instantly in the app, and vice versa.
+    </Tip>
+  </Step>
+  
+  <Step title="Create a Salesperson Account">
+    To test the full workflow:
+    
+    1. Log out from Manager account
+    2. On login screen, tap **"Sign up as a Salesperson"**
+    3. Register with different credentials:
+       - Email: sales@test.com
+       - Password: test1234
+    4. Explore the Salesperson dashboard
+    
+    Salespersons can:
+    - View inventory (read-only)
+    - See their performance graphs
+    - Check leaderboard ranking
+    - Chat with the manager
+  </Step>
+</Steps>
+
+## Understanding User Roles
+
+The app authenticates users and determines their role from Firebase:
+
+<CodeGroup>
+```java Manager Login Flow (MainActivity.java:142)
+if (RadioButtonSelect(radioGroup_type.getCheckedRadioButtonId()).equals("Manager")) {
+    databaseRef = FirebaseDatabase.getInstance().getReference("Manager");
+    databaseRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                SalesManager sm1 = snapshot.getValue(SalesManager.class);
+                if (sm1.getEmail().equals(email)) {
+                    SessionManager sm = new SessionManager(getApplicationContext());
+                    sm.createLoginSession(snapshot.getKey(), "Manager");
+                    goto_Manager();
+                    break;
+                }
+            }
+        }
+    });
+}
+```
+
+```java Salesperson Login Flow (MainActivity.java:174)
+else {
+    databaseRef = FirebaseDatabase.getInstance().getReference("Salesperson");
+    databaseRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                SalesPerson sp1 = snapshot.getValue(SalesPerson.class);
+                if (sp1.getEmailId().equals(email)) {
+                    SessionManager sm = new SessionManager(getApplicationContext());
+                    sm.createLoginSession(snapshot.getKey(), "Salesperson");
+                    goto_Salesperson();
+                }
+            }
+        }
+    });
+}
+```
+</CodeGroup>
+
+<Warning>
+  Users must select the correct role (Manager or Salesperson) that matches their registration. If a manager selects "Salesperson" during login, authentication will fail with:
+  
+  "This Email is not registered as Salesperson!!"
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Chat Feature" icon="comments" href="/features/chat">
+    Learn how to use the global chat room and personal messaging
+  </Card>
+  <Card title="Analytics & Graphs" icon="chart-line" href="/features/analytics">
+    Understand performance tracking and profit analysis
+  </Card>
+  <Card title="Inventory Management" icon="boxes" href="/features/inventory">
+    Deep dive into adding, updating, and tracking inventory
+  </Card>
+  <Card title="API Reference" icon="code" href="/api/sales-manager">
+    Explore the Java classes and Firebase structure
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="App Crashes on Launch">
+    **Problem**: App crashes immediately after launch
+    
+    **Common causes**:
+    1. Missing or invalid `google-services.json`
+    2. Firebase services not enabled
+    
+    **Solution**:
+    ```bash
+    # Check logcat for errors
+    adb logcat | grep -i firebase
+    
+    # Look for:
+    # "Default FirebaseApp is not initialized"
+    # "google-services.json is missing"
+    ```
+    
+    Verify Firebase configuration in [Installation Guide](/installation#step-3-firebase-configuration).
+  </Accordion>
+  
+  <Accordion title="Authentication Failed">
+    **Problem**: "Authentication failed" error on login
+    
+    **Solution**:
+    1. Verify Email/Password authentication is enabled in Firebase Console
+    2. Check that password is at least 6 characters
+    3. Ensure correct role is selected (Manager vs Salesperson)
+    4. Verify internet connection (app requires network access)
+  </Accordion>
+  
+  <Accordion title="Data Not Appearing">
+    **Problem**: Inventory or chat messages don't show up
+    
+    **Solution**:
+    1. Check Firebase Realtime Database rules:
+       ```json
+       {
+         "rules": {
+           ".read": true,
+           ".write": true
+         }
+       }
+       ```
+    2. Verify internet connectivity
+    3. Check Firebase Console to see if data is being written
+    4. Look for permission errors in logcat
+  </Accordion>
+  
+  <Accordion title="Images Not Loading">
+    **Problem**: Profile pictures or images don't display
+    
+    **Solution**:
+    1. Verify Firebase Storage is set up and accessible
+    2. Check storage rules allow read/write
+    3. Grant storage permissions:
+       ```xml AndroidManifest.xml:6
+       <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+       <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+       ```
+    4. Accept permission prompts when the app requests them
+  </Accordion>
+</AccordionGroup>
+
+<Note>
+  Having issues? Check the [GitHub Issues](https://github.com/gargmehul10/Sales-Management-App/issues) or create a new issue with your error logs.
 </Note>

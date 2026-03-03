@@ -1,0 +1,172 @@
+---
+title: Introduction
+description: A comprehensive Android application for managing sales teams efficiently with real-time communication, inventory tracking, and performance analytics
+---
+
+<img
+  className="block dark:hidden"
+  src="/images/hero-light.png"
+  alt="Sales Management Hero Light"
+/>
+<img
+  className="hidden dark:block"
+  src="/images/hero-dark.png"
+  alt="Sales Management Hero Dark"
+/>
+
+## Welcome to Sales Management App
+
+The Sales Management App is a powerful Android application built with Java and Firebase that enables sales managers to efficiently coordinate their teams and salespersons to track their performance. With real-time communication, inventory management, and advanced analytics, it provides everything needed to optimize sales operations.
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card
+    title="Dual Role System"
+    icon="users"
+    href="#role-based-access"
+  >
+    Separate interfaces for Sales Managers and Salespersons with role-specific features
+  </Card>
+  <Card
+    title="Real-Time Chat"
+    icon="comments"
+    href="/features/chat"
+  >
+    Global chat room and personal messaging between managers and salespersons
+  </Card>
+  <Card
+    title="Inventory Management"
+    icon="boxes"
+    href="/features/inventory"
+  >
+    Track commodities, available stock, sold items, and profit margins
+  </Card>
+  <Card
+    title="Performance Analytics"
+    icon="chart-line"
+    href="/features/analytics"
+  >
+    Visual graphs, leaderboards, and AI-powered sales recommendations
+  </Card>
+</CardGroup>
+
+## Role-Based Access
+
+The app supports two distinct user roles, each with tailored functionality:
+
+### Sales Manager
+
+- **Team Management**: View and manage all salesperson profiles
+- **Inventory Control**: Add, update, and monitor inventory items
+- **Analytics Dashboard**: Access profit analysis via pie charts
+- **Communication Hub**: Send messages in global chat and personal chats
+- **Performance Monitoring**: Track team performance through graphs and leaderboards
+
+### Salesperson
+
+- **Personal Dashboard**: View own profile and performance metrics
+- **Inventory Access**: Browse available products and track sales
+- **Performance Tracking**: Monitor personal progress with line graphs
+- **Leaderboard**: View rankings among top 10 salespersons
+- **Direct Communication**: Chat with manager and team members
+
+## Technical Architecture
+
+<CodeGroup>
+```xml AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="project.avishkar.salesmanagement">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme">
+        <activity
+            android:name=".Registration.MainActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+```
+
+```java InventoryItem.java
+package project.avishkar.salesmanagement;
+
+public class InventoryItem {
+    private String itemName;
+    private int total_available, sold, profit;
+
+    public InventoryItem(String itemName, int total_available, int sold, int profit) {
+        this.itemName = itemName;
+        this.total_available = total_available;
+        this.sold = sold;
+        this.profit = profit;
+    }
+
+    public String getItemName() { return itemName; }
+    public int getTotal_available() { return total_available; }
+    public int getSold() { return sold; }
+    public int getProfit() { return profit; }
+}
+```
+</CodeGroup>
+
+## Advanced Features
+
+<AccordionGroup>
+  <Accordion title="AI-Powered Recommendations">
+    The app includes a recommendation algorithm that analyzes salesperson sales patterns to suggest future targets, helping maximize profits and optimize performance.
+  </Accordion>
+  
+  <Accordion title="Image Compression">
+    All images uploaded to Firebase Storage are automatically compressed before transmission, reducing server load and improving app performance.
+  </Accordion>
+  
+  <Accordion title="Real-Time Synchronization">
+    Firebase Realtime Database ensures all data updates are synchronized across devices instantly, keeping teams coordinated.
+  </Accordion>
+  
+  <Accordion title="Performance Graphs">
+    Salespersons can view line graphs of their progress over time, while managers access pie charts for profit analysis across the team.
+  </Accordion>
+</AccordionGroup>
+
+## Quick Links
+
+<CardGroup cols={3}>
+  <Card
+    title="Installation"
+    icon="download"
+    href="/installation"
+  >
+    Set up Android Studio and configure Firebase
+  </Card>
+  <Card
+    title="Quick Start"
+    icon="rocket"
+    href="/quickstart"
+  >
+    Get the app running in minutes
+  </Card>
+  <Card
+    title="API Reference"
+    icon="code"
+    href="/api/sales-manager"
+  >
+    Explore the codebase structure
+  </Card>
+</CardGroup>
+
+<Note>
+  This app requires Android SDK 22 (Lollipop) or higher and uses Firebase for authentication, real-time database, and cloud storage.
+</Note>

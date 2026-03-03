@@ -1,0 +1,442 @@
+---
+title: 'Firebase Setup'
+description: 'Configure Firebase Authentication, Realtime Database, Storage, and Cloud Messaging for the Sales Management App'
+---
+
+## Overview
+
+The Sales Management App uses Firebase as its backend-as-a-service platform, providing authentication, real-time data synchronization, file storage, and push notifications.
+
+<Note>
+  This guide assumes you have already created a Firebase project in the [Firebase Console](https://console.firebase.google.com).
+</Note>
+
+## Firebase Project Configuration
+
+### Step 1: Add Android App to Firebase
+
+1. In the Firebase Console, click "Add app" and select Android
+2. Register your app with the package name:
+   ```
+   project.avishkar.salesmanagement
+   ```
+3. Download the `google-services.json` file
+4. Place it in the `app/` directory of your Android project
+
+<Warning>
+  Never commit `google-services.json` to public repositories as it contains sensitive configuration data.
+</Warning>
+
+### Step 2: Add Firebase SDK
+
+The Firebase SDK is configured via Gradle dependencies:
+
+<CodeGroup>
+```gradle build.gradle (Project Level)
+buildscript {
+    repositories {
+        google()
+        jcenter()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.1.4'
+        // Google Services plugin for Firebase
+        classpath 'com.google.gms:google-services:4.0.1'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        jcenter()
+        maven {
+            url 'https://maven.google.com'
+        }
+    }
+}
+```
+
+```gradle build.gradle (App Level)
+apply plugin: 'com.android.application'
+
+android {
+    compileSdkVersion 26
+    defaultConfig {
+        applicationId "project.avishkar.salesmanagement"
+        minSdkVersion 22
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+    }
+}
+
+dependencies {
+    // Firebase Core SDK
+    implementation 'com.google.firebase:firebase-core:16.0.1'
+    
+    // Firebase Authentication
+    implementation 'com.google.firebase:firebase-auth:16.0.1'
+    
+    // Firebase Realtime Database
+    implementation 'com.google.firebase:firebase-database:16.0.1'
+    
+    // Firebase Storage
+    implementation 'com.google.firebase:firebase-storage:16.0.1'
+    
+    // Firebase UI for Storage (image loading)
+    implementation 'com.firebaseui:firebase-ui-storage:4.1.0'
+    
+    // Firebase Cloud Messaging
+    compile 'com.google.firebase:firebase-messaging:10.2.1'
+    
+    // Other dependencies...
+}
+
+// IMPORTANT: This must be at the bottom
+apply plugin: 'com.google.gms.google-services'
+```
+</CodeGroup>
+
+<Warning>
+  The `apply plugin: 'com.google.gms.google-services'` line must be at the bottom of the app-level build.gradle file, after all dependencies.
+</Warning>
+
+## Firebase Authentication
+
+The app uses Firebase Authentication to manage user accounts for both sales managers and salespeople.
+
+### Enable Authentication Methods
+
+1. In Firebase Console, go to **Authentication > Sign-in method**
+2. Enable **Email/Password** authentication
+3. (Optional) Enable other sign-in methods as needed
+
+### Authentication Flow
+
+The app implements separate registration flows:
+
+<CodeGroup>
+```java User Registration (Conceptual)
+// Sales Manager Registration
+FirebaseAuth.getInstance()
+    .createUserWithEmailAndPassword(email, password)
+    .addOnCompleteListener(task -> {
+        if (task.isSuccessful()) {
+            // Save manager data to Realtime Database
+            FirebaseUser user = task.getResult().getUser();
+            saveSalesManagerToDatabase(user.getUid());
+        }
+    });
+
+// Salesperson Registration
+FirebaseAuth.getInstance()
+    .createUserWithEmailAndPassword(email, password)
+    .addOnCompleteListener(task -> {
+        if (task.isSuccessful()) {
+            // Save salesperson data to Realtime Database
+            FirebaseUser user = task.getResult().getUser();
+            saveSalespersonToDatabase(user.getUid());
+        }
+    });
+```
+</CodeGroup>
+
+## Firebase Realtime Database
+
+The Realtime Database stores all app data including user profiles, inventory, messages, and leaderboard information.
+
+### Database Structure
+
+Recommended database structure for the Sales Management App:
+
+```json
+{
+  "salesManagers": {
+    "<manager_uid>": {
+      "name": "John Doe",
+      "email": "john@example.com",
+      "number": "+1234567890",
+      "orgName": "Sales Corp",
+      "password": "hashed_password",
+      "inventoryItems": {
+        "item1": {
+          "itemName": "Product A",
+          "total_available": 100,
+          "sold": 25,
+          "profit": 75
+        }
+      }
+    }
+  },
+  "salesPeople": {
+    "<salesperson_uid>": {
+      "name": "Jane Smith",
+      "email": "jane@example.com",
+      "number": "+1234567891",
+      "managerName": "John Doe",
+      "password": "hashed_password",
+      "inventoryItems": { }
+    }
+  },
+  "messages": {
+    "<chat_room_id>": {
+      "<message_id>": {
+        "text": "Hello team!",
+        "sender": "Jane Smith",
+        "timestamp": 1234567890
+      }
+    }
+  },
+  "leaderboard": {
+    "<salesperson_uid>": {
+      "name": "Jane Smith",
+      "totalSales": 1500,
+      "rank": 1
+    }
+  }
+}
+```
+
+### Database Rules
+
+Configure security rules to protect user data:
+
+<CodeGroup>
+```json Database Rules (Basic)
+{
+  "rules": {
+    "salesManagers": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "salesPeople": {
+      "$uid": {
+        ".read": "auth != null",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    },
+    "messages": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+    "leaderboard": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    }
+  }
+}
+```
+
+```json Database Rules (Production)
+{
+  "rules": {
+    "salesManagers": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('salesPeople').child(auth.uid).child('managerUid').val() == $uid)",
+        ".write": "auth != null && auth.uid == $uid",
+        ".validate": "newData.hasChildren(['name', 'email', 'number', 'orgName'])"
+      }
+    },
+    "salesPeople": {
+      "$uid": {
+        ".read": "auth != null && (auth.uid == $uid || root.child('salesPeople').child($uid).child('managerUid').val() == auth.uid)",
+        ".write": "auth != null && auth.uid == $uid",
+        ".validate": "newData.hasChildren(['name', 'email', 'number', 'managerName'])"
+      }
+    },
+    "messages": {
+      "$roomId": {
+        ".read": "auth != null",
+        "$messageId": {
+          ".write": "auth != null && !data.exists()",
+          ".validate": "newData.hasChildren(['text', 'sender', 'timestamp'])"
+        }
+      }
+    },
+    "leaderboard": {
+      ".read": "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    }
+  }
+}
+```
+</CodeGroup>
+
+<Note>
+  The production rules provide more granular access control, ensuring that managers can view their team members' data while salespeople can only access their own data.
+</Note>
+
+### Constants Configuration
+
+The app defines database paths in a Constants class:
+
+<CodeGroup>
+```java Constants.java
+package project.avishkar.salesmanagement;
+
+public class Constants {
+    public static final String STORAGE_PATH_UPLOADS = "uploads/";
+    public static final String DATABASE_UPLOADS = "uploads";
+}
+```
+</CodeGroup>
+
+## Firebase Storage
+
+Firebase Storage is used for uploading and storing files such as profile pictures and product images.
+
+### Storage Structure
+
+```
+uploads/
+├── profile_images/
+│   ├── <user_uid>.jpg
+│   └── <user_uid>.jpg
+├── product_images/
+│   ├── <product_id>.jpg
+│   └── <product_id>.jpg
+└── documents/
+    └── <file_name>.pdf
+```
+
+### Storage Rules
+
+Configure storage security rules:
+
+<CodeGroup>
+```javascript Storage Rules
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Allow authenticated users to upload files
+    match /uploads/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024  // Max 5MB
+                   && request.resource.contentType.matches('image/.*');  // Images only
+    }
+    
+    // Profile images - users can only modify their own
+    match /uploads/profile_images/{userId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+</CodeGroup>
+
+### FileProvider Configuration
+
+The app uses FileProvider for secure file sharing:
+
+<CodeGroup>
+```xml AndroidManifest.xml
+<provider
+    android:name="android.support.v4.content.FileProvider"
+    android:authorities="${applicationId}"
+    android:exported="false"
+    android:grantUriPermissions="true">
+    <meta-data
+        android:name="android.support.FILE_PROVIDER_PATHS"
+        android:resource="@xml/file_paths" />
+</provider>
+```
+</CodeGroup>
+
+## Firebase Cloud Messaging
+
+FCM enables push notifications for real-time updates.
+
+### Setup Steps
+
+1. In Firebase Console, go to **Cloud Messaging**
+2. Note your **Server Key** and **Sender ID**
+3. The app includes FCM dependency:
+   ```gradle
+   implementation 'com.google.firebase:firebase-messaging:10.2.1'
+   ```
+
+### Notification Types
+
+The app can send notifications for:
+
+- New chat messages
+- Inventory updates
+- Leaderboard rank changes
+- Team announcements
+- Performance alerts
+
+<Note>
+  Implement a FirebaseMessagingService to handle incoming FCM messages and display notifications to users.
+</Note>
+
+## Testing Firebase Integration
+
+### Verification Checklist
+
+<Steps>
+  <Step title="Authentication">
+    Test user registration and login for both managers and salespeople
+  </Step>
+  <Step title="Database">
+    Verify data is being written and read correctly from Realtime Database
+  </Step>
+  <Step title="Storage">
+    Upload test images and verify they appear in Firebase Storage console
+  </Step>
+  <Step title="Messaging">
+    Send test notifications from Firebase Console to verify FCM setup
+  </Step>
+</Steps>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="google-services.json not found">
+    Ensure the file is placed in the `app/` directory (not in `app/src/`). Rebuild the project after adding the file.
+  </Accordion>
+
+  <Accordion title="Firebase initialization failed">
+    Check that the package name in `google-services.json` matches your app's `applicationId` in build.gradle.
+  </Accordion>
+
+  <Accordion title="Database permission denied">
+    Verify your database rules allow authenticated users to read/write. Check that users are successfully authenticated before accessing the database.
+  </Accordion>
+
+  <Accordion title="Storage upload fails">
+    Ensure storage rules permit uploads and the file size is within limits. Check that the app has WRITE_EXTERNAL_STORAGE permission.
+  </Accordion>
+</AccordionGroup>
+
+## Security Best Practices
+
+<Warning>
+  **Never store passwords in plain text**. The current implementation should be updated to use Firebase Authentication exclusively for password management.
+</Warning>
+
+<CardGroup cols={2}>
+  <Card title="Enable App Check" icon="shield-check">
+    Protect your Firebase resources from abuse by enabling App Check
+  </Card>
+  <Card title="Monitor Usage" icon="chart-line">
+    Set up billing alerts and monitor Firebase usage regularly
+  </Card>
+  <Card title="Secure Rules" icon="lock">
+    Regularly audit and test your security rules
+  </Card>
+  <Card title="Environment Config" icon="gear">
+    Use separate Firebase projects for development and production
+  </Card>
+</CardGroup>
+
+## Next Steps
+
+<Card title="Data Models" icon="database" href="/technical/data-models">
+  Learn about the core data models used throughout the application
+</Card>

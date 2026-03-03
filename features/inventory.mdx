@@ -1,0 +1,534 @@
+---
+title: Inventory Management
+description: Complete guide to adding, viewing, updating, and managing inventory items for Sales Managers and Salespersons
+---
+
+The Inventory Management system provides real-time synchronization between managers and their sales team, ensuring everyone has up-to-date information on product availability and sales performance.
+
+## Overview
+
+Inventory management works differently based on your role:
+
+<CardGroup cols={2}>
+  <Card title="Manager View" icon="warehouse">
+    Add items, set quantities and profit margins, view team-wide sales, and delete products
+  </Card>
+  <Card title="Salesperson View" icon="box">
+    View assigned inventory, log sales, track personal performance, and see remaining stock
+  </Card>
+</CardGroup>
+
+## Inventory Data Model
+
+Each inventory item contains the following information:
+
+```java
+public class InventoryItem {
+    private String itemName;
+    private int total_available;  // Total quantity available
+    private int sold;             // Quantity sold
+    private int profit;           // Profit per unit
+    
+    public InventoryItem(String itemName, int total_available, int sold, int profit) {
+        this.itemName = itemName;
+        this.total_available = total_available;
+        this.sold = sold;
+        this.profit = profit;
+    }
+}
+```
+
+Source: `InventoryItem.java:1-42`
+
+<Info>
+  The `profit` field represents the profit margin per unit sold, not the total profit. Total profit is calculated as `sold * profit`.
+</Info>
+
+## Manager Inventory Management
+
+### Adding Inventory Items
+
+Managers can add new products to the inventory, which automatically propagates to all salespersons on their team.
+
+<Steps>
+  <Step title="Access Add Item Dialog">
+    From the Manager dashboard, tap the floating action button (FAB) in the bottom-right corner.
+    
+    ```java
+    FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
+    fab.setOnClickListener(new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            // Show dialog to add item
+        }
+    });
+    ```
+    
+    Source: `ManagerMain.java:114-117`
+  </Step>
+  
+  <Step title="Enter Item Details">
+    In the dialog, provide:
+    - **Item Name**: Product name or SKU
+    - **Quantity**: Initial available quantity
+    - **Profit per Unit**: Profit margin for each item sold
+    
+    The quantity picker uses a MeterView component for easy number selection.
+  </Step>
+  
+  <Step title="Validate and Save">
+    The system validates all fields are filled:
+    
+    ```java
+    String item = itemName.getText().toString();
+    String q1 = String.valueOf(q.getValue());
+    int profitAmount = Integer.parseInt(profit.getText().toString());
+    
+    if(TextUtils.isEmpty(item) || TextUtils.isEmpty(q1)) {
+        Toast.makeText(getApplicationContext(), 
+            "Please fill all the details!", 
+            Toast.LENGTH_LONG).show();
+    } else {
+        int quant = Integer.parseInt(q1);
+        it = new InventoryItem(item, quant, 0, profitAmount);
+        
+        String key = databaseRef.child(id).child("Inventory").push().getKey();
+        databaseRef.child(id).child("Inventory").child(key).setValue(it);
+    }
+    ```
+    
+    Source: `ManagerMain.java:137-152`
+  </Step>
+  
+  <Step title="Auto-Distribution to Team">
+    The item is automatically added to all salespersons under this manager:
+    
+    ```java
+    final DatabaseReference databaseRef1 = FirebaseDatabase.getInstance()
+        .getReference("Salesperson");
+    databaseRef1.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot2) {
+            for(DataSnapshot snapshot1 : dataSnapshot2.getChildren()) {
+                SalesPerson sp1 = snapshot1.getValue(SalesPerson.class);
+                String salesperson_id = snapshot1.getKey();
+                
+                if(sp1.getManagerName().equals(ManagerName)) {
+                    String key1 = databaseRef1.child(salesperson_id)
+                        .child("Inventory").push().getKey();
+                    databaseRef1.child(salesperson_id)
+                        .child("Inventory").child(key1).setValue(it);
+                }
+            }
+        }
+    });
+    ```
+    
+    Source: `ManagerMain.java:196-218`
+    
+    <Tip>
+      All salespersons on your team receive the new item instantly with zero sales and the full available quantity.
+    </Tip>
+  </Step>
+</Steps>
+
+### Viewing Inventory
+
+The Manager dashboard displays all inventory items in a RecyclerView with detailed information:
+
+```java
+mRecyclerView = findViewById(R.id.items_list);
+final ArrayList<InventoryItem> list = new ArrayList<>();
+
+databaseRef.child(id).child("Inventory")
+    .addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                InventoryItem it1 = snapshot.getValue(InventoryItem.class);
+                list.add(it1);
+            }
+            mAdapter = new InventoryAdapter(getApplicationContext(), list, ManagerMain.this);
+            mRecyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+            mRecyclerView.setAdapter(mAdapter);
+        }
+    });
+```
+
+Source: `ManagerMain.java:92-111`
+
+### Inventory Item Display
+
+Each inventory item card shows:
+
+<CardGroup cols={2}>
+  <Card title="Item Name" icon="tag">
+    Product or SKU identifier
+  </Card>
+  <Card title="Total Available" icon="boxes-stacked">
+    Initial quantity added to inventory
+  </Card>
+  <Card title="Sold" icon="arrow-trend-up">
+    Total units sold across all salespersons
+  </Card>
+  <Card title="Unallocated" icon="box-open">
+    Remaining available units (Total - Sold)
+  </Card>
+  <Card title="Total Profit" icon="dollar-sign">
+    Calculated as: Profit per unit × Sold quantity
+  </Card>
+  <Card title="Progress Bar" icon="chart-bar">
+    Visual indicator of sales progress
+  </Card>
+</CardGroup>
+
+Implementation in `InventoryAdapter.java:69-78`:
+
+```java
+holder.total.setText(String.valueOf(item.getTotal_available()));
+holder.sold.setText(String.valueOf(item.getSold()));
+holder.unalloted.setText(String.valueOf(item.getTotal_available() - item.getSold()));
+holder.itemName.setText(item.getItemName());
+holder.progressBar.setMax(item.getTotal_available());
+holder.progressBar.setProgress(item.getSold());
+holder.profitText.setText(String.valueOf(item.getProfit() * item.getSold()));
+```
+
+### Deleting Inventory Items
+
+Managers can remove items from inventory:
+
+<Steps>
+  <Step title="Tap Delete Icon">
+    Each inventory item has a delete icon. Tapping it shows a confirmation dialog.
+  </Step>
+  
+  <Step title="Confirm Deletion">
+    A warning dialog appears:
+    
+    ```java
+    new FancyAlertDialog.Builder(activity)
+        .setTitle("Warning!!!")
+        .setBackgroundColor(Color.parseColor("#5002a4"))
+        .setMessage("Do you really want to delete this item?")
+        .setNegativeBtnText("No")
+        .setPositiveBtnText("Yes")
+        .OnPositiveClicked(new FancyAlertDialogListener() {
+            @Override
+            public void OnClick() {
+                // Delete item
+            }
+        })
+        .build();
+    ```
+    
+    Source: `InventoryAdapter.java:93-104`
+  </Step>
+  
+  <Step title="Cascading Deletion">
+    The item is removed from:
+    1. Manager's inventory
+    2. All salespersons' inventories who work under this manager
+    
+    ```java
+    // Delete from manager
+    snapshot.getRef().removeValue();
+    
+    // Delete from all salespersons
+    DatabaseReference databaseRef1 = FirebaseDatabase.getInstance()
+        .getReference("Salesperson");
+    databaseRef1.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(DataSnapshot dataSnapshot) {
+            for(DataSnapshot dataSnapshot1 : dataSnapshot.getChildren()){
+                String id1 = dataSnapshot1.getKey();
+                databaseRef2.child(id1).child("Inventory")
+                    .addListenerForSingleValueEvent(new ValueEventListener() {
+                        // Find and delete matching item
+                    });
+            }
+        }
+    });
+    ```
+    
+    Source: `InventoryAdapter.java:124-161`
+  </Step>
+</Steps>
+
+<Warning>
+  Deletion is permanent and cannot be undone. All sales history for that item will be preserved in analytics but the item cannot be sold anymore.
+</Warning>
+
+### Refresh Inventory
+
+Pull down on the inventory list to refresh and sync with the latest data:
+
+```java
+swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+    @Override
+    public void onRefresh() {
+        updateList(id, role, false);
+        swipeRefreshLayout.setRefreshing(false);
+    }
+});
+```
+
+Source: `ManagerMain.java:75-81`
+
+## Salesperson Inventory Management
+
+### Viewing Assigned Inventory
+
+Salespersons see their personal inventory with items assigned by their manager:
+
+```java
+databaseReference = FirebaseDatabase.getInstance().getReference(role);
+mRecyclerView = findViewById(R.id.items_list1);
+
+list = new ArrayList<>();
+databaseReference.child(id).child("Inventory")
+    .addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for(DataSnapshot snapshot : dataSnapshot.getChildren()){
+                InventoryItem it1 = snapshot.getValue(InventoryItem.class);
+                list.add(it1);
+            }
+            mAdapter = new SalespersonInventoryAdapter(getApplicationContext(), list);
+            mRecyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+            mRecyclerView.setAdapter(mAdapter);
+        }
+    });
+```
+
+Source: `SalespersonMain.java:268-287`
+
+### Recording Sales
+
+Salespersons log sales through an intuitive dialog:
+
+<Steps>
+  <Step title="Open Selling Dialog">
+    Tap the floating action button on the Salesperson dashboard:
+    
+    ```java
+    fab.setOnClickListener(new View.OnClickListener() {
+        @Override
+        public void onClick(View v) {
+            ArrayList<String> itemlist = getItemList(id, role);
+            // Show selling dialog
+        }
+    });
+    ```
+    
+    Source: `SalespersonMain.java:93-97`
+  </Step>
+  
+  <Step title="Select Item and Quantity">
+    The dialog provides:
+    - **AutoCompleteTextView**: Search and select from available items
+    - **MeterView**: Set quantity sold
+    
+    ```java
+    final AutoCompleteTextView autoCompleteTextView;
+    final MeterView numberPicker;
+    
+    ArrayAdapter<String> adapter = new ArrayAdapter<String>(
+        mView.getContext(),
+        R.layout.support_simple_spinner_dropdown_item,
+        itemlist
+    );
+    autoCompleteTextView.setThreshold(1);
+    autoCompleteTextView.setAdapter(adapter);
+    ```
+    
+    Source: `SalespersonMain.java:107-110`
+  </Step>
+  
+  <Step title="Validation">
+    The system validates the sale:
+    
+    ```java
+    sold = numberPicker.getValue();
+    final String itemName = autoCompleteTextView.getText().toString();
+    
+    if(TextUtils.isEmpty(itemName) || sold == 0) {
+        Toast.makeText(getApplicationContext(),
+            "Please fill all the details!", 
+            Toast.LENGTH_LONG).show();
+    }
+    
+    // Check if sold quantity exceeds available
+    if(it1.getTotal_available() < sold) {
+        Toast.makeText(getApplicationContext(), 
+            "Sold can't be greater than items remaining!", 
+            Toast.LENGTH_LONG).show();
+        sold = 0;
+    }
+    ```
+    
+    Source: `SalespersonMain.java:166-169`
+  </Step>
+  
+  <Step title="Update Inventory">
+    The sale updates multiple locations:
+    
+    **1. Salesperson's sold count:**
+    ```java
+    InventoryItem it = new InventoryItem(
+        itemName,
+        it1.getTotal_available(),
+        sold + it1.getSold(),  // Add to existing sold
+        it1.getProfit()
+    );
+    databaseReference1.child(id).child("Inventory")
+        .child(snapshot1.getKey()).setValue(it);
+    ```
+    
+    Source: `SalespersonMain.java:171-172`
+    
+    **2. Manager's sold count:**
+    ```java
+    InventoryItem itNew = new InventoryItem(
+        itemName,
+        it1.getTotal_available(),
+        it1.getSold() + sold,  // Increment manager's sold
+        it1.getProfit()
+    );
+    databaseReference.child(snapshot.getKey())
+        .child("Inventory").child(snapshot1.getKey()).setValue(itNew);
+    ```
+    
+    Source: `SalespersonMain.java:342-343`
+    
+    **3. All team members' available quantity:**
+    ```java
+    InventoryItem it = new InventoryItem(
+        itemName,
+        it1.getTotal_available() - sold,  // Reduce available for all
+        it1.getSold(),
+        it1.getProfit()
+    );
+    ```
+    
+    Source: `SalespersonMain.java:208`
+  </Step>
+  
+  <Step title="Graph Update">
+    The sale is recorded in the analytics graph:
+    
+    ```java
+    if(sold > 0) {
+        GraphSalesperson.create(
+            String.valueOf(it1.getProfit() * sold), 
+            salespersonName
+        );
+    }
+    ```
+    
+    Source: `SalespersonMain.java:179-186`
+  </Step>
+</Steps>
+
+### Real-Time Synchronization
+
+The inventory system maintains consistency across all users:
+
+<Accordion title="How Synchronization Works">
+  When a salesperson records a sale:
+  
+  1. **Their inventory** increases the "sold" count
+  2. **Manager's inventory** increases the "sold" count for that item
+  3. **All team members** see reduced "available" quantity
+  4. **Analytics graphs** update with the new sale data
+  5. **Leaderboard** recalculates performance metrics
+  
+  This happens in real-time through Firebase listeners, ensuring everyone has current information.
+</Accordion>
+
+## Inventory Item Details
+
+Tap any inventory item to view detailed information:
+
+```java
+holder.itemView.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View view) {
+        Intent intent = new Intent(context, ProductSpecificDetails.class);
+        intent.putExtra("itemName", item.getItemName());
+        intent.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+        context.startActivity(intent);
+    }
+});
+```
+
+Source: `InventoryAdapter.java:79-86`
+
+The `ProductSpecificDetails` activity shows:
+- Complete sales history
+- Performance by salesperson
+- Profit breakdown
+- Availability trends
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="Manager: Adding Initial Inventory">
+    1. Tap the FAB button
+    2. Enter item name: "Laptop Model X"
+    3. Set quantity: 50 units
+    4. Set profit: $100 per unit
+    5. Tap OK
+    6. Item appears on your dashboard and all salespersons' dashboards
+  </Accordion>
+  
+  <Accordion title="Salesperson: Recording a Sale">
+    1. Tap the FAB button
+    2. Type item name in search field
+    3. Select from dropdown
+    4. Use number picker to set quantity sold: 3 units
+    5. Tap OK
+    6. Your sold count increases by 3
+    7. Available quantity decreases by 3 for all team members
+    8. Manager sees updated sold count
+    9. Graph records your profit ($300 in this example)
+  </Accordion>
+  
+  <Accordion title="Manager: Monitoring Team Performance">
+    1. View inventory list
+    2. Check "Sold" column for each item
+    3. Review progress bars for visual performance indicators
+    4. Tap item for detailed breakdown by salesperson
+    5. Navigate to Analytics for profit distribution graphs
+  </Accordion>
+  
+  <Accordion title="Salesperson: Checking Available Stock">
+    1. Open your dashboard
+    2. View "Total Available" for each item
+    3. This reflects current stock after all team sales
+    4. Pull down to refresh if needed
+    5. Items with low stock appear with low available counts
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="For Managers" icon="user-tie">
+    - Add items with realistic quantities
+    - Set accurate profit margins
+    - Monitor low stock items regularly
+    - Delete discontinued items promptly
+  </Card>
+  
+  <Card title="For Salespersons" icon="user">
+    - Log sales immediately after closing
+    - Double-check quantities before submitting
+    - Monitor available stock before promising customers
+    - Refresh inventory before major sales calls
+  </Card>
+</CardGroup>
+
+<Tip>
+  Use the pull-to-refresh gesture frequently during high-sales periods to ensure you have the latest inventory data.
+</Tip>

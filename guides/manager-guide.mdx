@@ -1,0 +1,239 @@
+---
+title: Manager Guide
+description: Complete workflow for managers to manage inventory, view team, and analyze sales performance
+---
+
+## Overview
+
+As a Sales Manager, you have access to powerful tools to manage your sales team, inventory, and analyze business performance. This guide will walk you through all the features available to you.
+
+## Getting Started
+
+<Steps>
+  <Step title="Login to Your Account">
+    1. Open the Sales Management App
+    2. Enter your email and password
+    3. Select "Manager" as your role
+    4. Click the login button
+
+    <Note>
+      If you forgot your password, click the "Forgot Password" button and enter your email to receive reset instructions.
+    </Note>
+  </Step>
+
+  <Step title="Dashboard Overview">
+    After logging in, you'll see your dashboard displaying:
+    - Current inventory items
+    - Available quantities
+    - Items sold by your team
+    - Profit margins per item
+
+    Use the swipe-to-refresh gesture to update your inventory list in real-time.
+  </Step>
+</Steps>
+
+## Core Features
+
+<CardGroup cols={2}>
+  <Card title="Inventory Management" icon="box">
+    Add and manage products that your sales team will sell
+  </Card>
+  <Card title="Team Management" icon="users">
+    View your team members and track their performance
+  </Card>
+  <Card title="Analytics" icon="chart-line">
+    Analyze sales data and profit trends over time
+  </Card>
+  <Card title="Communication" icon="comments">
+    Chat with your sales team in real-time
+  </Card>
+</CardGroup>
+
+## Managing Inventory
+
+### Adding New Items
+
+<Steps>
+  <Step title="Open Add Item Dialog">
+    Click the floating action button (FAB) at the bottom-right of your dashboard.
+  </Step>
+
+  <Step title="Enter Item Details">
+    Fill in the following information:
+    - **Item Name**: The product name
+    - **Quantity**: Total available quantity
+    - **Profit**: Profit amount per unit sold
+  </Step>
+
+  <Step title="Save and Sync">
+    Click "OK" to add the item. The system will automatically:
+    - Add the item to your inventory
+    - Sync it to all salespersons under your management
+    - Update the dashboard with the new item
+  </Step>
+</Steps>
+
+<Tip>
+  When you add an item, it's automatically distributed to all salespersons who are registered under your name. This ensures your entire team has access to the same inventory.
+</Tip>
+
+### Viewing Inventory
+
+Your inventory list shows:
+- **Item Name**: Product identifier
+- **Total Available**: Current stock remaining
+- **Sold**: Number of units sold across your team
+- **Profit**: Profit margin per unit
+
+The inventory updates automatically when your team records sales.
+
+## Team Management
+
+### Viewing Your Team
+
+Navigate to **My Team** from the sidebar menu to:
+- See all salespersons working under you
+- View team member details
+- Message individual team members
+
+### Team Member Details
+
+<Steps>
+  <Step title="Access Member Details">
+    In the My Team list, swipe left on any team member and tap "Details".
+  </Step>
+
+  <Step title="View Information">
+    The details dialog shows:
+    - Name
+    - Phone number
+    - Email address
+    - Organization
+    - Profile picture
+  </Step>
+</Steps>
+
+### Direct Messaging
+
+Swipe left on any team member and tap the message icon to start a personal chat. This allows you to:
+- Give direct feedback
+- Answer questions
+- Provide guidance on specific sales
+
+## Analytics and Statistics
+
+Navigate to **Statistics** from the sidebar menu to access detailed analytics.
+
+### Sales Performance Graphs
+
+The statistics view provides:
+- **Profit Trends**: Daily profit tracking over time
+- **Team Performance**: Compare sales across team members
+- **Product Analysis**: Identify best-selling products
+
+<Tip>
+  Use the graph data to identify top performers and products that need more focus. This helps you make data-driven decisions about inventory and team coaching.
+</Tip>
+
+### Understanding the Data
+
+The graph system (source:~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/Graph/GraphManagerActivity.java:1) tracks:
+- Real-time profit calculations
+- Date-based performance metrics
+- Aggregate team sales data
+
+## Communication Features
+
+### Chat Room
+
+Access the group chat room from the sidebar menu to:
+- Broadcast messages to your entire team
+- Share updates and announcements
+- Coordinate team activities
+
+<Note>
+  The chat room is identified by your manager phone number and allows all team members to participate in group discussions.
+</Note>
+
+### Personal Messaging
+
+For one-on-one conversations:
+1. Go to **My Team**
+2. Swipe left on a team member
+3. Tap the message icon
+4. Start your private conversation
+
+## Account Management
+
+Select **My Account** from the sidebar to:
+- View your profile information
+- Update your details
+- Check your organization information
+
+## Inviting Salespersons
+
+<Steps>
+  <Step title="Generate Invite">
+    Select "Send Invite" from the sidebar menu.
+  </Step>
+
+  <Step title="Share Your Name">
+    The app generates an invite message containing your manager name. Share this through:
+    - WhatsApp
+    - Email
+    - SMS
+    - Any messaging platform
+  </Step>
+
+  <Step title="Salesperson Registration">
+    When salespersons sign up using your name, they are automatically:
+    - Added to your team
+    - Given access to your inventory
+    - Linked to your analytics dashboard
+  </Step>
+</Steps>
+
+<Tip>
+  Your manager name is the unique identifier that connects salespersons to your team. Make sure to share it exactly as it appears in your profile.
+</Tip>
+
+## Sharing the App
+
+Select **Share** from the sidebar to distribute the app installation file to potential team members.
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Regular Inventory Updates" icon="rotate">
+    Add new products regularly and remove discontinued items to keep your team's inventory current.
+  </Card>
+  <Card title="Monitor Analytics Daily" icon="eye">
+    Check your statistics dashboard daily to track trends and identify issues early.
+  </Card>
+  <Card title="Stay Connected" icon="link">
+    Use the chat features to maintain regular communication with your team.
+  </Card>
+  <Card title="Review Team Performance" icon="star">
+    Regularly check My Team to understand individual performance and provide support where needed.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Inventory Not Syncing
+
+If inventory items aren't appearing for your salespersons:
+1. Verify they registered using your exact manager name
+2. Check your internet connection
+3. Use swipe-to-refresh to force a sync
+
+### Chat Messages Not Appearing
+
+Ensure:
+- You have a stable internet connection
+- The app has necessary permissions
+- You're using the correct chat room
+
+<Note>
+  All data syncs through Firebase in real-time. Network connectivity is essential for proper app functionality.
+</Note>

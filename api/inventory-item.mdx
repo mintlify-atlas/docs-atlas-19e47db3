@@ -1,0 +1,126 @@
+---
+title: 'InventoryItem'
+description: 'Core class representing an inventory item with tracking for availability, sales, and profit calculations'
+---
+
+## Overview
+
+The `InventoryItem` class represents an item in the inventory system. It tracks the item name, total availability, units sold, and profit information.
+
+## Constructors
+
+### Default Constructor
+
+```java
+public InventoryItem()
+```
+
+Creates an empty InventoryItem instance with no initialized fields.
+
+### Full Parameterized Constructor
+
+```java
+public InventoryItem(String itemName, int total_available, int sold, int profit)
+```
+
+Creates an InventoryItem with all fields explicitly specified.
+
+<ParamField path="itemName" type="String">
+  The name of the inventory item
+</ParamField>
+
+<ParamField path="total_available" type="int">
+  The total number of units available in inventory
+</ParamField>
+
+<ParamField path="sold" type="int">
+  The number of units sold
+</ParamField>
+
+<ParamField path="profit" type="int">
+  The profit value for this item
+</ParamField>
+
+### Auto-Calculate Profit Constructor
+
+```java
+public InventoryItem(String itemName, int total_available, int sold)
+```
+
+Creates an InventoryItem with automatic profit calculation. The profit is calculated as `(total_available - sold)`.
+
+<ParamField path="itemName" type="String">
+  The name of the inventory item
+</ParamField>
+
+<ParamField path="total_available" type="int">
+  The total number of units available in inventory
+</ParamField>
+
+<ParamField path="sold" type="int">
+  The number of units sold
+</ParamField>
+
+## Fields
+
+<ResponseField name="itemName" type="String" required>
+  The name of the inventory item
+</ResponseField>
+
+<ResponseField name="total_available" type="int" required>
+  The total number of units available in inventory
+</ResponseField>
+
+<ResponseField name="sold" type="int" required>
+  The number of units sold
+</ResponseField>
+
+<ResponseField name="profit" type="int" required>
+  The profit value for this item. Can be explicitly set or auto-calculated as (total_available - sold)
+</ResponseField>
+
+## Methods
+
+### getItemName()
+
+```java
+public String getItemName()
+```
+
+Returns the name of the inventory item.
+
+**Returns:** `String` - The item name
+
+### getTotal_available()
+
+```java
+public int getTotal_available()
+```
+
+Returns the total number of units available in inventory.
+
+**Returns:** `int` - The total available units
+
+### getSold()
+
+```java
+public int getSold()
+```
+
+Returns the number of units sold.
+
+**Returns:** `int` - The number of units sold
+
+### getProfit()
+
+```java
+public int getProfit()
+```
+
+Returns the profit value for this item.
+
+**Returns:** `int` - The profit value
+
+## Source Code Location
+
+`~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/InventoryItem.java`

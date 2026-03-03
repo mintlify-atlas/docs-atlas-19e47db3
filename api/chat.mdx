@@ -1,0 +1,250 @@
+---
+title: Chat API
+description: Real-time messaging system for communication between managers and salespersons
+---
+
+## Overview
+
+The Chat API provides real-time messaging functionality using Firebase Realtime Database, enabling seamless communication between managers and salespersons in the Sales Management App.
+
+## ChatRoom
+
+Activity that manages the chat room interface for viewing and sending messages.
+
+**Package**: `project.avishkar.salesmanagement.Chat`
+
+### Key Features
+
+- Real-time message synchronization
+- Firebase integration for persistent messaging
+- RecyclerView-based message display
+- Automatic message list updates
+
+### Properties
+
+<ParamField path="recyclerView" type="RecyclerView">
+  Displays the list of chat messages
+</ParamField>
+
+<ParamField path="messageListAdapter" type="ChatRoomAdapter">
+  Adapter for rendering messages in the RecyclerView
+</ParamField>
+
+<ParamField path="sendButton" type="Button">
+  Button to send messages
+</ParamField>
+
+<ParamField path="chatBox" type="EditText">
+  Input field for composing messages
+</ParamField>
+
+<ParamField path="SalespersonName" type="String">
+  Name of the salesperson in the chat
+</ParamField>
+
+<ParamField path="ManagerNumber" type="String">
+  Manager's unique identifier for the chat room
+</ParamField>
+
+### Methods
+
+#### onCreate()
+
+Initializes the chat room activity and sets up Firebase listeners.
+
+<CodeGroup>
+```java ChatRoom.java
+@Override
+protected void onCreate(@Nullable Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.list_view_personal_chat);
+    
+    recyclerView = findViewById(R.id.recylerview_message_list);
+    sendButton = findViewById(R.id.button_chatbox_send);
+    chatBox = findViewById(R.id.edittext_chatbox);
+    
+    databaseReference = FirebaseDatabase.getInstance()
+        .getReference("ChatRoom");
+}
+```
+</CodeGroup>
+
+<Note>
+  The timestamp is calculated using `System.currentTimeMillis() / 1000 - 19800` to adjust for timezone offset.
+</Note>
+
+---
+
+## PersonalChatActivityManager
+
+Activity for managers to engage in one-on-one chat with salespersons.
+
+**Package**: `project.avishkar.salesmanagement.Chat`
+
+### Key Features
+
+- Personal messaging between manager and salesperson
+- Smooth scrolling to latest messages
+- Real-time message updates
+- Session management integration
+
+### Properties
+
+<ParamField path="recyclerView" type="RecyclerView">
+  Displays the message list
+</ParamField>
+
+<ParamField path="messageListAdapter" type="MessageListAdapter">
+  Adapter for message rendering
+</ParamField>
+
+<ParamField path="SalespersonName" type="String">
+  Name of the salesperson
+</ParamField>
+
+<ParamField path="ManagerName" type="String">
+  Name of the manager
+</ParamField>
+
+<ParamField path="tmp1" type="String">
+  Sanitized manager name (whitespace removed)
+</ParamField>
+
+<ParamField path="tmp2" type="String">
+  Sanitized salesperson name (whitespace removed)
+</ParamField>
+
+### Implementation Details
+
+<CodeGroup>
+```java Chat Key Format
+// Chat room identifier format
+String chatKey = tmp1 + "-" + tmp2;
+// Example: "JohnManager-JaneSalesperson"
+
+databaseReference.child(chatKey).addChildEventListener(...);
+```
+
+```java Message Sending
+String message = chatBox.getText().toString();
+Long tsLong = System.currentTimeMillis() / 1000 - 19800;
+String ts = tsLong.toString();
+
+BaseMessage baseMessage = new BaseMessage(
+    message, 
+    ts, 
+    mp.get("id"), 
+    mp.get("role")
+);
+
+String key1 = databaseReference
+    .child(tmp1 + "-" + tmp2)
+    .push()
+    .getKey();
+    
+databaseReference
+    .child(tmp1 + "-" + tmp2)
+    .child(key1)
+    .setValue(baseMessage);
+```
+</CodeGroup>
+
+<Note>
+  The activity automatically scrolls to the latest message using `recyclerView.smoothScrollToPosition(mMessages.size()-1)`
+</Note>
+
+---
+
+## PersonalChatActivitySalesperson
+
+Activity for salespersons to chat with their assigned manager.
+
+**Package**: `project.avishkar.salesmanagement.Chat`
+
+### Key Features
+
+- Salesperson-side personal messaging
+- Firebase real-time synchronization
+- Message validation
+- Session-aware messaging
+
+### Properties
+
+<ParamField path="recyclerView" type="RecyclerView">
+  Displays the conversation messages
+</ParamField>
+
+<ParamField path="messageListAdapter" type="MessageListAdapter">
+  Handles message list rendering
+</ParamField>
+
+<ParamField path="sendButton" type="Button">
+  Triggers message sending
+</ParamField>
+
+<ParamField path="chatBox" type="EditText">
+  Text input for message composition
+</ParamField>
+
+<ParamField path="databaseReference" type="DatabaseReference">
+  Firebase reference to ChatsTable
+</ParamField>
+
+### Message Structure
+
+Messages are stored using the BaseMessage model:
+
+<CodeGroup>
+```java BaseMessage.java
+public class BaseMessage {
+    String message;      // Message content
+    String senderName;   // Sender's name
+    String msgRole;      // Sender's role (manager/salesperson)
+    String createdAt;    // Timestamp
+    
+    public BaseMessage(String message, String createdAt, 
+                      String senderName, String msgRole) {
+        this.message = message;
+        this.senderName = senderName;
+        this.createdAt = createdAt;
+        this.msgRole = msgRole;
+    }
+}
+```
+</CodeGroup>
+
+### Validation
+
+The activity includes message validation:
+
+<CodeGroup>
+```java Validation
+if (!message.equals("")) {
+    // Send message
+    BaseMessage baseMessage = new BaseMessage(
+        message, 
+        ts, 
+        SalespersonName, 
+        mp.get("role")
+    );
+    // Push to Firebase
+} else {
+    Toast.makeText(
+        getApplicationContext(), 
+        "message is empty!!", 
+        Toast.LENGTH_SHORT
+    ).show();
+}
+```
+</CodeGroup>
+
+## Firebase Structure
+
+The chat system uses two main Firebase paths:
+
+- **ChatRoom**: For group chat rooms identified by manager number
+- **ChatsTable**: For personal one-on-one conversations identified by `ManagerName-SalespersonName`
+
+<Note>
+  All chat activities use `SessionManager` to retrieve current user details including ID and role.
+</Note>

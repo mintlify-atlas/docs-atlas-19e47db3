@@ -1,0 +1,414 @@
+---
+title: User Management & Authentication
+description: Complete guide to user registration, login, role-based access, and profile management for Managers and Salespersons
+---
+
+The Sales Management App provides a comprehensive authentication system with role-based access control for two distinct user types: Sales Managers and Salespersons.
+
+## User Roles
+
+The app supports two primary user roles, each with distinct permissions and capabilities:
+
+<CardGroup cols={2}>
+  <Card title="Sales Manager" icon="user-tie">
+    Full team oversight with inventory management, team analytics, and communication tools
+  </Card>
+  <Card title="Salesperson" icon="user">
+    Personal dashboard with inventory tracking, sales logging, and performance metrics
+  </Card>
+</CardGroup>
+
+## Registration Flow
+
+### Manager Registration
+
+Sales Managers can create an account with the following information:
+
+<Steps>
+  <Step title="Access Registration">
+    From the login screen, tap "Sign up as a Manager" to navigate to the manager registration form.
+    
+    The `SignUpSalesManager` activity handles the registration process at `Registration/SignUpSalesManager.java:37`.
+  </Step>
+  
+  <Step title="Complete Required Fields">
+    Enter all required information:
+    - Full Name
+    - Email Address
+    - Mobile Number (validated format)
+    - Organization Name
+    - Password (minimum 6 characters)
+    
+    <Note>
+      All fields are validated before submission. Email and phone numbers must be in valid formats.
+    </Note>
+  </Step>
+  
+  <Step title="Account Creation">
+    The system performs several validations:
+    
+    ```java
+    // Email validation
+    if(!isValidEmail(email)){
+        Toast.makeText(getApplicationContext(), "Invalid email !!", Toast.LENGTH_SHORT).show();
+        return;
+    }
+    
+    // Password length check
+    if (password.length() < 6) {
+        Toast.makeText(getApplicationContext(), "Password too short, enter minimum 6 characters!", Toast.LENGTH_SHORT).show();
+        return;
+    }
+    ```
+    
+    Source: `SignUpSalesManager.java:119-122`
+  </Step>
+  
+  <Step title="Firebase Authentication">
+    The app creates your account in Firebase Authentication and stores your profile in the Firebase Realtime Database:
+    
+    ```java
+    SalesManager salesManager = new SalesManager(name, num, password, email, org);
+    databaseRef = FirebaseDatabase.getInstance().getReference("Manager");
+    String key = databaseRef.push().getKey();
+    databaseRef.child(key).setValue(salesManager);
+    ```
+    
+    Source: `SignUpSalesManager.java:141-145`
+  </Step>
+  
+  <Step title="Session Creation">
+    Upon successful registration, a session is created using SharedPreferences:
+    
+    ```java
+    SessionManager sessionManager = new SessionManager(getApplicationContext());
+    sessionManager.createLoginSession(key,"Manager");
+    ```
+    
+    You're automatically redirected to the Manager dashboard at `ManagerMain.java:248`.
+  </Step>
+</Steps>
+
+### Salesperson Registration
+
+Salespersons register by connecting to an existing Sales Manager:
+
+<Steps>
+  <Step title="Access Registration">
+    From the login screen, tap "Sign up as a Salesperson" to open the salesperson registration form.
+  </Step>
+  
+  <Step title="Enter Details and Manager Name">
+    Complete all required fields including:
+    - Full Name
+    - Email Address
+    - Mobile Number
+    - **Manager Name** (must match an existing manager)
+    - Password
+    
+    <Warning>
+      The Manager Name must exactly match an existing manager's name in the system. Registration will fail if the manager doesn't exist.
+    </Warning>
+  </Step>
+  
+  <Step title="Manager Verification">
+    The system verifies the manager exists:
+    
+    ```java
+    databaseRef = FirebaseDatabase.getInstance().getReference("Manager");
+    databaseRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            int x=0;
+            for(DataSnapshot dataSnapshot1: dataSnapshot.getChildren()){
+                SalesManager salesManager = dataSnapshot1.getValue(SalesManager.class);
+                if(salesManager.getName().equals(managerName)){
+                    x=1;
+                    break;
+                }
+            }
+            if(x == 0){
+                Toast.makeText(getApplicationContext(),"This Manager does not exist !!", Toast.LENGTH_LONG).show();
+            }
+        }
+    });
+    ```
+    
+    Source: `SignUpSalesperson.java:143-159`
+  </Step>
+  
+  <Step title="Inventory Initialization">
+    When you join a team, the manager's inventory items are automatically copied to your account:
+    
+    ```java
+    InventoryItem itNew = new InventoryItem(
+        it.getItemName(),
+        it.getTotal_available() - it.getSold(), 
+        0, 
+        it.getProfit()
+    );
+    databaseReference1.child("Inventory").child(key).setValue(itNew);
+    ```
+    
+    Source: `SignUpSalesperson.java:223-224`
+  </Step>
+  
+  <Step title="Leaderboard Entry">
+    A leaderboard entry is created with your registration timestamp:
+    
+    ```java
+    Long tsLong = System.currentTimeMillis()/1000;
+    String ts = tsLong.toString();
+    LeaderBoardObject leaderBoardObject = new LeaderBoardObject(name, ts);
+    databaseReference1.child(key1).setValue(leaderBoardObject);
+    ```
+    
+    Source: `SignUpSalesperson.java:184-188`
+  </Step>
+</Steps>
+
+## Login Flow
+
+### Accessing Your Account
+
+<Steps>
+  <Step title="Enter Credentials">
+    On the main login screen (`MainActivity`), enter:
+    - Email address
+    - Password
+    - Select your role (Manager or Salesperson) using the radio button
+  </Step>
+  
+  <Step title="Authentication">
+    The app authenticates against Firebase:
+    
+    ```java
+    auth.signInWithEmailAndPassword(email,password)
+        .addOnCompleteListener(MainActivity.this, new OnCompleteListener<com.google.firebase.auth.AuthResult>() {
+            @Override
+            public void onComplete(@NonNull Task<com.google.firebase.auth.AuthResult> task) {
+                if (!task.isSuccessful()) {
+                    if (password.length() < 6) {
+                        inputPassword.setError(getString(R.string.minimum_password));
+                    }
+                    else {
+                        Toast.makeText(MainActivity.this, getString(R.string.auth_failed), Toast.LENGTH_LONG).show();
+                    }
+                }
+            }
+        });
+    ```
+    
+    Source: `MainActivity.java:126-139`
+  </Step>
+  
+  <Step title="Role Verification">
+    The system verifies your email matches the selected role:
+    
+    ```java
+    if(RadioButtonSelect(radioGroup_type.getCheckedRadioButtonId()).equals("Manager")){
+        databaseRef = FirebaseDatabase.getInstance().getReference("Manager");
+        // Verify email exists in Manager collection
+    }
+    else{
+        databaseRef = FirebaseDatabase.getInstance().getReference("Salesperson");
+        // Verify email exists in Salesperson collection
+    }
+    ```
+    
+    Source: `MainActivity.java:142-174`
+    
+    <Info>
+      If you select the wrong role, you'll see an error: "This email is not registered as [role]!"
+    </Info>
+  </Step>
+  
+  <Step title="Session Management">
+    A session is created with your user ID and role stored locally:
+    
+    ```java
+    SessionManager sm = new SessionManager(getApplicationContext());
+    sm.createLoginSession(snapshot.getKey(), "Manager"); // or "Salesperson"
+    ```
+    
+    This session persists across app restarts until you logout.
+  </Step>
+</Steps>
+
+### Auto-Login
+
+The app remembers your login state:
+
+```java
+if (auth.getCurrentUser() != null) {
+    SessionManager sm = new SessionManager(getApplicationContext());
+    HashMap<String,String> details = sm.getUserDetails();
+    String tmp1 = details.get("id");
+    String tmp2 = details.get("role");
+    if(!TextUtils.isEmpty(tmp1)&& !TextUtils.isEmpty(tmp2)){
+        if(tmp2.equals("Manager")){
+            goto_Manager();
+        }
+        else {
+            goto_Salesperson();
+        }
+    }
+}
+```
+
+Source: `MainActivity.java:57-72`
+
+<Tip>
+  When you reopen the app, you're automatically redirected to your dashboard if your session is still active.
+</Tip>
+
+## Password Recovery
+
+Forgot your password? The app includes a password reset feature:
+
+<Steps>
+  <Step title="Enter Email">
+    On the login screen, enter your registered email address in the email field.
+  </Step>
+  
+  <Step title="Request Reset">
+    Tap the "Forgot Password" button. The system sends a password reset email:
+    
+    ```java
+    auth.sendPasswordResetEmail(email)
+        .addOnCompleteListener(new OnCompleteListener<Void>() {
+            @Override
+            public void onComplete(@NonNull Task<Void> task) {
+                if (task.isSuccessful()) {
+                    Toast.makeText(MainActivity.this, 
+                        "We have sent you instructions to reset your password!", 
+                        Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(MainActivity.this, 
+                        "Failed to send reset email!", 
+                        Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    ```
+    
+    Source: `MainActivity.java:228-240`
+  </Step>
+  
+  <Step title="Check Email">
+    Check your email inbox for the password reset link from Firebase Authentication.
+  </Step>
+</Steps>
+
+## Profile Management
+
+Both Managers and Salespersons can view and update their profile information through the "My Account" section in the navigation drawer.
+
+### Viewing Your Profile
+
+Access your profile by:
+1. Opening the navigation drawer (tap the hamburger menu)
+2. Selecting "My Account"
+3. The `AccountManager` activity displays your profile information
+
+### Data Model
+
+**Sales Manager Profile:**
+```java
+public class SalesManager {
+    private String name;
+    private String number;
+    private String password;
+    private String email;
+    private String organisation;
+    
+    // Getters and setters
+}
+```
+
+**Salesperson Profile:**
+```java
+public class SalesPerson {
+    private String name;
+    private String number;
+    private String password;
+    private String managerName;
+    private String emailId;
+    
+    // Getters and setters
+}
+```
+
+## Security Features
+
+<AccordionGroup>
+  <Accordion title="Password Security">
+    - Minimum 6 characters required
+    - Stored securely in Firebase Authentication
+    - Password reset available via email
+  </Accordion>
+  
+  <Accordion title="Email Validation">
+    The app validates email format using Android's Patterns utility:
+    ```java
+    public static boolean isValidEmail(CharSequence target) {
+        return Patterns.EMAIL_ADDRESS.matcher(target).matches();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Phone Validation">
+    Mobile numbers are validated to ensure proper format:
+    ```java
+    private boolean isValidMobile(String phone) {
+        return android.util.Patterns.PHONE.matcher(phone).matches();
+    }
+    ```
+  </Accordion>
+  
+  <Accordion title="Session Management">
+    User sessions are managed using SharedPreferences with user ID and role stored locally. Sessions persist until explicit logout.
+  </Accordion>
+  
+  <Accordion title="Role-Based Access">
+    Each role has access to different features:
+    - Managers: Team management, global inventory control, analytics
+    - Salespersons: Personal inventory, sales tracking, leaderboard
+  </Accordion>
+</AccordionGroup>
+
+## Common Issues
+
+<AccordionGroup>
+  <Accordion title="Registration fails with 'Manager does not exist'">
+    When registering as a Salesperson, ensure you enter the exact name of your manager as they registered. Names are case-sensitive and must match exactly.
+  </Accordion>
+  
+  <Accordion title="Login fails with 'Email not registered as [role]'">
+    Verify you've selected the correct role (Manager or Salesperson) that matches how you originally registered.
+  </Accordion>
+  
+  <Accordion title="Password too short error">
+    Passwords must be at least 6 characters long. Use a combination of letters, numbers, and symbols for better security.
+  </Accordion>
+  
+  <Accordion title="Already registered email">
+    Each email can only be used once in the system. Use a different email address or reset your password if you've forgotten it.
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="For Managers" icon="clipboard-check">
+    - Share your exact registered name with your team
+    - Use a professional email address
+    - Keep your organization name consistent
+  </Card>
+  
+  <Card title="For Salespersons" icon="user-check">
+    - Verify manager name spelling before submitting
+    - Use a unique email address
+    - Contact your manager if registration fails
+  </Card>
+</CardGroup>

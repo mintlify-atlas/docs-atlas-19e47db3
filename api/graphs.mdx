@@ -1,0 +1,297 @@
+---
+title: Graphs API
+description: Visual analytics and data visualization for sales performance tracking
+---
+
+## Overview
+
+The Graphs API provides visual representations of sales data using MPAndroidChart library, enabling managers and salespersons to analyze profit trends and inventory performance.
+
+## GraphManagerActivity
+
+Activity that displays profit analysis using an interactive pie chart for managers.
+
+**Package**: `project.avishkar.salesmanagement.Graph`
+
+### Key Features
+
+- Profit distribution visualization
+- Real-time data updates
+- Interactive pie chart with animations
+- Inventory-based profit calculation
+- Firebase integration
+
+### Properties
+
+<ParamField path="pieChart" type="PieChart">
+  MPAndroidChart PieChart component for displaying profit distribution
+</ParamField>
+
+<ParamField path="entries" type="ArrayList<PieEntry>">
+  Collection of pie chart data entries
+</ParamField>
+
+<ParamField path="id" type="String">
+  Current manager's unique identifier
+</ParamField>
+
+<ParamField path="progressBar" type="ProgressBar">
+  Loading indicator displayed during data fetch
+</ParamField>
+
+### Implementation
+
+#### Data Calculation
+
+<CodeGroup>
+```java Profit Calculation
+float total = 0.0f;
+for (DataSnapshot snapshot1 : dataSnapshot.getChildren()) {
+    InventoryItem it = snapshot1.getValue(InventoryItem.class);
+    total += it.getProfit() * it.getSold();
+}
+
+for (DataSnapshot snapshot1 : dataSnapshot.getChildren()) {
+    InventoryItem it = snapshot1.getValue(InventoryItem.class);
+    float curr = ((it.getProfit() * it.getSold()) / total) * 100.0f;
+    
+    if (curr > 0.0f)
+        entries.add(new PieEntry(curr, it.getItemName()));
+}
+```
+</CodeGroup>
+
+#### Chart Configuration
+
+<CodeGroup>
+```java Chart Setup
+PieDataSet set = new PieDataSet(entries, "Profit Results");
+set.setValueTextSize(20f);
+set.setColors(ColorTemplate.VORDIPLOM_COLORS);
+
+PieData data = new PieData(set);
+data.setValueTextColor(Color.BLACK);
+
+pieChart.setData(data);
+pieChart.setCenterText("Your Profit\\nAnalysis");
+pieChart.setCenterTextSize(20f);
+pieChart.animateXY(
+    1000, 
+    1000, 
+    Easing.EasingOption.EaseInOutCirc,
+    Easing.EasingOption.EaseInOutCirc
+);
+```
+</CodeGroup>
+
+### Real-time Updates
+
+The activity listens for inventory changes and updates the chart automatically:
+
+<CodeGroup>
+```java Child Event Listener
+databaseReference.child(snapshot.getKey())
+    .child("Inventory")
+    .addChildEventListener(new ChildEventListener() {
+        @Override
+        public void onChildChanged(
+            @NonNull DataSnapshot dataSnapshot, 
+            @Nullable String s
+        ) {
+            entries.clear();
+            progressBar.setVisibility(View.VISIBLE);
+            // Recalculate and update chart
+        }
+    });
+```
+</CodeGroup>
+
+<Note>
+  The chart uses `ColorTemplate.VORDIPLOM_COLORS` for initial load and `ColorTemplate.PASTEL_COLORS` for updates.
+</Note>
+
+---
+
+## GraphSalespersonActivity
+
+Activity that displays profit trends over time using a bar chart for salespersons.
+
+**Package**: `project.avishkar.salesmanagement.Graph`
+
+### Key Features
+
+- Daily profit tracking
+- Bar chart visualization
+- Time-based performance analysis
+- Customizable axes and legends
+
+### Properties
+
+<ParamField path="barChart" type="BarChart">
+  MPAndroidChart BarChart component for displaying profit over time
+</ParamField>
+
+<ParamField path="id" type="String">
+  Current salesperson's unique identifier
+</ParamField>
+
+<ParamField path="entries" type="ArrayList<BarEntry>">
+  Collection of bar chart data entries
+</ParamField>
+
+<ParamField path="flag" type="int">
+  Flag to track first data entry
+</ParamField>
+
+<ParamField path="store" type="int">
+  Stores the initial day for relative date calculation
+</ParamField>
+
+### Data Processing
+
+<CodeGroup>
+```java Date Calculation
+if (flag == 0) {
+    entries.add(new BarEntry(
+        0, 
+        Float.parseFloat(go.getProfit())
+    ));
+    flag = 1;
+    store = Integer.parseInt(go.getDate().substring(0, 2));
+} else {
+    int currentDay = ((Integer.parseInt(
+        go.getDate().substring(0, 2)
+    ) + 30) - store) % 30;
+    
+    entries.add(new BarEntry(
+        currentDay, 
+        Float.parseFloat(go.getProfit())
+    ));
+}
+```
+</CodeGroup>
+
+### Chart Configuration
+
+<CodeGroup>
+```java BarChart Setup
+BarDataSet dataSet = new BarDataSet(entries, "Profit");
+dataSet.setValueTextSize(15f);
+dataSet.setColors(ColorTemplate.VORDIPLOM_COLORS);
+
+BarData data = new BarData(dataSet);
+data.setBarWidth(0.9f);
+
+barChart.animateY(
+    3000, 
+    Easing.EasingOption.EaseInBounce
+);
+barChart.setData(data);
+barChart.setFitBars(true);
+barChart.invalidate();
+```
+</CodeGroup>
+
+### Axes Customization
+
+<CodeGroup>
+```java Axis Configuration
+// X-Axis
+XAxis xAxis = barChart.getXAxis();
+xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+xAxis.setTextSize(15f);
+xAxis.setGranularity(1f);
+xAxis.setTextColor(getResources().getColor(R.color.colorPrimary));
+xAxis.setDrawAxisLine(true);
+xAxis.setDrawGridLines(false);
+
+// Y-Axis (Left)
+YAxis yAxisL = barChart.getAxisLeft();
+yAxisL.setTextColor(getResources().getColor(R.color.colorPrimary));
+
+// Y-Axis (Right)
+YAxis yAxisR = barChart.getAxisRight();
+yAxisR.setTextColor(getResources().getColor(R.color.colorPrimary));
+
+// Legend
+Legend legend = barChart.getLegend();
+legend.setTextColor(getResources().getColor(R.color.colorPrimary));
+legend.setTextSize(12);
+legend.setWordWrapEnabled(true);
+```
+</CodeGroup>
+
+---
+
+## GraphObject
+
+Data model for storing graph-related information.
+
+**Package**: `project.avishkar.salesmanagement.Graph`
+
+### Properties
+
+<ParamField path="date" type="String">
+  Date of the profit entry
+</ParamField>
+
+<ParamField path="name" type="String">
+  Salesperson's name
+</ParamField>
+
+<ParamField path="profit" type="String">
+  Profit amount for the given date
+</ParamField>
+
+### Constructor
+
+<CodeGroup>
+```java GraphObject.java
+public class GraphObject {
+    private String date, name, profit;
+    
+    public GraphObject() {
+        // Default constructor for Firebase
+    }
+    
+    public GraphObject(String name, String profit, String date) {
+        this.date = date;
+        this.name = name;
+        this.profit = profit;
+    }
+    
+    public String getDate() {
+        return date;
+    }
+    
+    public String getName() {
+        return name;
+    }
+    
+    public String getProfit() {
+        return profit;
+    }
+}
+```
+</CodeGroup>
+
+## Firebase Structure
+
+The graph system uses these Firebase paths:
+
+- **Manager/{id}/Inventory**: Manager's inventory with profit data
+- **Salesperson/{id}**: Salesperson information
+- **GraphSalesperson**: Time-series profit data for salespersons
+
+<Note>
+  Both activities use `SessionManager` to retrieve the current user's ID and fetch relevant data from Firebase.
+</Note>
+
+## Chart Libraries
+
+The graphs API uses **MPAndroidChart** library:
+
+- PieChart for distribution analysis
+- BarChart for time-series visualization
+- Built-in animations and interactions
+- Customizable colors, legends, and labels

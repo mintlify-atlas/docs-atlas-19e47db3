@@ -1,0 +1,309 @@
+---
+title: Salesperson Guide
+description: Complete workflow for salespersons to record sales, communicate with managers, and track performance
+---
+
+## Overview
+
+As a Salesperson, you can track your inventory, record sales, communicate with your team, and monitor your performance on the leaderboard. This guide covers everything you need to succeed in your role.
+
+## Getting Started
+
+<Steps>
+  <Step title="Register Your Account">
+    1. Click "Sign up as a Salesperson" on the login screen
+    2. Enter your personal details:
+       - Name
+       - Email address
+       - Phone number
+       - Password
+       - Manager Name (provided by your manager)
+    3. Complete registration
+
+    <Note>
+      Make sure to enter your manager's name exactly as they shared it with you. This links you to their team and inventory.
+    </Note>
+  </Step>
+
+  <Step title="Login to Your Account">
+    1. Open the Sales Management App
+    2. Enter your email and password
+    3. Select "Salesperson" as your role
+    4. Click the login button
+  </Step>
+
+  <Step title="Explore Your Dashboard">
+    Your dashboard displays:
+    - All available inventory items
+    - Current stock quantities
+    - Items you've sold
+    - Your profit contributions
+  </Step>
+</Steps>
+
+## Core Features
+
+<CardGroup cols={2}>
+  <Card title="Sales Recording" icon="cash-register">
+    Log your sales quickly and update inventory in real-time
+  </Card>
+  <Card title="Leaderboard" icon="trophy">
+    Track your ranking and performance against team members
+  </Card>
+  <Card title="Communication" icon="message">
+    Chat with your manager and team members
+  </Card>
+  <Card title="Performance Analytics" icon="chart-bar">
+    View your sales trends and profit history
+  </Card>
+</CardGroup>
+
+## Recording Sales
+
+This is your primary workflow for updating sales throughout the day.
+
+<Steps>
+  <Step title="Open Sales Dialog">
+    Click the floating action button (FAB) at the bottom-right of your dashboard.
+  </Step>
+
+  <Step title="Select Product">
+    - Tap the dropdown field to see all available items
+    - Start typing to filter products
+    - Select the item you sold
+
+    <Tip>
+      The autocomplete feature (source:~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/SalespersonMain.java:101) helps you quickly find products by typing just a few letters.
+    </Tip>
+  </Step>
+
+  <Step title="Enter Quantity Sold">
+    Use the number picker to select how many units you sold.
+
+    <Note>
+      You cannot sell more items than the available inventory. The system will alert you if you try to exceed the available quantity.
+    </Note>
+  </Step>
+
+  <Step title="Submit Your Sale">
+    Click "OK" to record the sale. The system automatically:
+    - Updates your inventory
+    - Decreases available quantity for all team members
+    - Increases your sold count
+    - Updates your manager's inventory
+    - Adds data points to analytics graphs
+    - Recalculates leaderboard rankings
+  </Step>
+</Steps>
+
+### What Happens When You Record a Sale
+
+When you successfully log a sale (source:~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/SalespersonMain.java:143-243):
+
+1. **Your Inventory Updates**: The sold quantity is added to your record
+2. **Team Inventory Syncs**: All salespersons under the same manager see the reduced available quantity
+3. **Manager Dashboard Updates**: Your manager sees the increased sold count
+4. **Analytics Update**: Your daily profit is recorded for graph visualization
+5. **Leaderboard Recalculates**: Your performance index is updated
+
+<Tip>
+  Record your sales immediately after making them. This keeps inventory accurate for your entire team and ensures you get credit on the leaderboard right away.
+</Tip>
+
+## Viewing Your Inventory
+
+Your inventory list displays:
+- **Item Name**: Product identifier
+- **Available**: How many units you can still sell
+- **Sold**: Your total sales for each item
+- **Profit per Unit**: How much profit each sale generates
+
+### Refreshing Your Inventory
+
+Use the swipe-to-refresh gesture (pull down from the top) to update your inventory list. This ensures you have the latest quantities, especially if other team members have recorded sales.
+
+## Leaderboard and Performance
+
+### Accessing the Leaderboard
+
+Navigate to **Leaderboard** from the sidebar menu to see:
+- Rankings of all salespersons under your manager
+- Performance Index (PI) scores
+- Your position in the team
+
+### Understanding Performance Index
+
+Your Performance Index is calculated as:
+
+```
+Performance Index = Total Profit / Days Since Registration
+```
+
+This metric (source:~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/Leaderboard/LeaderBoardSalesperson.java:206) accounts for:
+- All items you've sold
+- Profit margins on those items
+- How long you've been with the team
+
+<Note>
+  The Performance Index ensures fair comparison between new and experienced team members by normalizing profit over time.
+</Note>
+
+### Getting Sales Recommendations
+
+Click the floating action button on the leaderboard screen to see your recommended sales target.
+
+<Steps>
+  <Step title="View Your Recommendation">
+    The recommendation dialog displays your personalized profit target.
+  </Step>
+
+  <Step title="Understand the Target">
+    The algorithm calculates your target based on:
+    - Your current Performance Index
+    - The top performer's Performance Index
+    - A 10% growth factor
+
+    See the [Recommendation Algorithm](/guides/recommendation-algorithm) page for detailed explanation.
+  </Step>
+
+  <Step title="Track Your Progress">
+    The circular progress indicator shows you're on the path to reaching your target.
+  </Step>
+</Steps>
+
+<Tip>
+  Use the recommended target as a daily or weekly goal to improve your ranking on the leaderboard.
+</Tip>
+
+## Performance Analytics
+
+Navigate to **Statistics** from the sidebar menu to view your personal sales analytics.
+
+### Your Performance Graphs
+
+The statistics view shows:
+- **Daily Profit Tracking**: See your profit trends over time
+- **Sales Patterns**: Identify your best performing days
+- **Product Performance**: Which items you sell most effectively
+
+### Using Analytics to Improve
+
+<CardGroup cols={2}>
+  <Card title="Identify Trends" icon="line-chart">
+    Look for patterns in your sales data to understand what works best.
+  </Card>
+  <Card title="Set Goals" icon="bullseye">
+    Use historical data to set realistic daily sales targets.
+  </Card>
+  <Card title="Compare Performance" icon="balance-scale">
+    Cross-reference with the leaderboard to see how you stack up.
+  </Card>
+  <Card title="Track Growth" icon="arrow-trend-up">
+    Monitor your Performance Index over time to measure improvement.
+  </Card>
+</CardGroup>
+
+## Communication Features
+
+### Messaging Your Manager
+
+For direct communication with your manager:
+
+<Steps>
+  <Step title="Access Direct Message">
+    Select **Message Manager** from the sidebar menu.
+  </Step>
+
+  <Step title="Start Conversation">
+    Type your message and click send. Use this for:
+    - Asking questions about products
+    - Reporting issues
+    - Requesting support
+    - Sharing customer feedback
+  </Step>
+</Steps>
+
+### Team Chat Room
+
+Join the group chat to:
+- Participate in team discussions
+- Share best practices with peers
+- Stay updated on announcements
+- Coordinate with other salespersons
+
+<Note>
+  Access the chat room by selecting "Chat Room" from the sidebar menu. All team members under your manager can see and participate in these conversations.
+</Note>
+
+## Account Management
+
+Select **My Account** from the sidebar to:
+- View your profile information
+- Update your details
+- Check your manager and organization
+- Review your registration date
+
+## Sharing the App
+
+Select **Share** from the sidebar to send the app installation file to colleagues who might want to join your sales organization.
+
+## Best Practices for Success
+
+<CardGroup cols={2}>
+  <Card title="Record Sales Immediately" icon="bolt">
+    Log sales right after they happen to maintain accurate inventory and claim your leaderboard position.
+  </Card>
+  <Card title="Check Inventory Daily" icon="calendar-check">
+    Review available quantities each morning to know what products you can sell.
+  </Card>
+  <Card title="Monitor Your Ranking" icon="ranking-star">
+    Check the leaderboard regularly to stay motivated and track your progress.
+  </Card>
+  <Card title="Use Recommendations" icon="lightbulb">
+    Follow the algorithm's suggested targets to systematically improve your performance.
+  </Card>
+  <Card title="Stay Connected" icon="comments">
+    Use chat features to learn from your manager and high-performing peers.
+  </Card>
+  <Card title="Analyze Your Data" icon="magnifying-glass-chart">
+    Review your statistics regularly to identify areas for improvement.
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### Can't See Inventory Items
+
+If your inventory is empty:
+1. Verify you entered the correct manager name during registration
+2. Contact your manager to confirm they've added products
+3. Use swipe-to-refresh to force a sync
+4. Check your internet connection
+
+### Sale Recording Failed
+
+Common issues when recording sales:
+- **Quantity too high**: You're trying to sell more than available
+- **Invalid item**: Select from the dropdown list only
+- **Connection error**: Check your internet connection
+- **Empty fields**: Ensure both item and quantity are filled
+
+### Leaderboard Not Updating
+
+If your ranking doesn't change:
+1. Ensure your sales were recorded successfully
+2. Wait a few moments for the Performance Index recalculation
+3. Refresh the leaderboard screen
+4. Check that you're viewing the correct manager's team
+
+<Note>
+  The app requires a stable internet connection for all features. Most sync issues are resolved by checking your network connection and refreshing the screen.
+</Note>
+
+## Getting Help
+
+If you encounter issues:
+1. **Contact Your Manager**: They can verify your account setup and inventory access
+2. **Check Permissions**: Ensure the app has necessary device permissions
+3. **Restart the App**: Close and reopen to refresh all connections
+4. **Reinstall if Needed**: As a last resort, reinstall the app and log back in

@@ -1,0 +1,465 @@
+---
+title: Leaderboard & Performance Tracking
+description: Track top performers, view performance metrics, and get personalized sales targets with the intelligent leaderboard system
+---
+
+The Leaderboard feature provides competitive motivation and performance tracking for sales teams, ranking salespersons by their performance index and offering AI-driven target recommendations.
+
+## Overview
+
+<Info>
+  The leaderboard is available exclusively to Salespersons. Managers can view individual performance through the "My Team" feature and analytics dashboards.
+</Info>
+
+<CardGroup cols={2}>
+  <Card title="Performance Index" icon="chart-line">
+    Normalized metric measuring profit generation rate over time since registration
+  </Card>
+  <Card title="Top 10 Ranking" icon="trophy">
+    Displays the highest performing salespersons across the entire organization
+  </Card>
+  <Card title="Target Recommendation" icon="bullseye">
+    AI algorithm suggests personalized profit targets to improve performance
+  </Card>
+  <Card title="Real-Time Updates" icon="rotate">
+    Rankings update automatically as sales are recorded
+  </Card>
+</CardGroup>
+
+## Accessing the Leaderboard
+
+Salespersons can access the leaderboard from their dashboard:
+
+<Steps>
+  <Step title="Open Navigation Drawer">
+    Tap the hamburger menu icon in the top-left corner of the Salesperson dashboard.
+  </Step>
+  
+  <Step title="Select Leaderboard">
+    Tap "Leaderboard" from the navigation menu:
+    
+    ```java
+    else if (id1 == R.id.leaderboard) {
+        Intent intent = new Intent(SalespersonMain.this, LeaderBoardSalesperson.class);
+        startActivity(intent);
+    }
+    ```
+    
+    Source: `SalespersonMain.java:459-462`
+  </Step>
+  
+  <Step title="View Rankings">
+    The `LeaderBoardSalesperson` activity displays the top performers with their performance metrics.
+  </Step>
+</Steps>
+
+## Performance Index Calculation
+
+The performance index is a time-normalized metric that ensures fair comparison between salespersons who joined at different times.
+
+### How It's Calculated
+
+<Steps>
+  <Step title="Retrieve Total Profit">
+    For each salesperson, calculate total profit from all sold items:
+    
+    ```java
+    DatabaseReference databaseReference = FirebaseDatabase.getInstance()
+        .getReference("Salesperson");
+    databaseReference.child(key).child("Inventory")
+        .addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                int totalProfit = 0;
+                for(DataSnapshot dataSnapshot2 : dataSnapshot.getChildren()){
+                    InventoryItem inventoryItem = dataSnapshot2.getValue(InventoryItem.class);
+                    totalProfit += inventoryItem.getSold() * inventoryItem.getProfit();
+                }
+            }
+        });
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:168-178`
+  </Step>
+  
+  <Step title="Get Signup Timestamp">
+    Retrieve the salesperson's registration timestamp from the LeaderBoard node:
+    
+    ```java
+    DatabaseReference databaseReference1 = FirebaseDatabase.getInstance()
+        .getReference("LeaderBoard");
+    databaseReference1.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for(DataSnapshot dataSnapshot3 : dataSnapshot.getChildren()){
+                LeaderBoardObject leaderBoardObject = dataSnapshot3.getValue(LeaderBoardObject.class);
+                
+                if(leaderBoardObject.getSalespersonName().equals(name)){
+                    signupTimeInSecs = Long.parseLong(leaderBoardObject.getTimestamp());
+                    break;
+                }
+            }
+        }
+    });
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:193-206`
+  </Step>
+  
+  <Step title="Calculate Days Active">
+    Determine how many days the salesperson has been active:
+    
+    ```java
+    Long currTimeInSecs = System.currentTimeMillis() / 1000;
+    Long timeDiff = ((Long)(currTimeInSecs - signupTimeInSecs) / 86400) + 1;
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:206`
+    
+    <Info>
+      86400 is the number of seconds in a day (24 × 60 × 60). Adding 1 ensures salespersons don't have zero days on their first day.
+    </Info>
+  </Step>
+  
+  <Step title="Compute Performance Index">
+    Calculate the daily profit average:
+    
+    ```java
+    String performanceCurr = String.valueOf((totalProfit * 1.0) / timeDiff);
+    int index = performanceCurr.lastIndexOf('.');
+    performanceCurr = performanceCurr.substring(0, index + 2);  // Round to 1 decimal
+    performanceIndex.add(performanceCurr);
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:207-210`
+    
+    **Formula:** `Performance Index = Total Profit ÷ Days Active`
+  </Step>
+</Steps>
+
+### Performance Index Example
+
+<Accordion title="Real-World Example">
+  **Salesperson A:**
+  - Joined: 30 days ago
+  - Total Profit Generated: $15,000
+  - Performance Index: $15,000 ÷ 30 = **$500/day**
+  
+  **Salesperson B:**
+  - Joined: 5 days ago
+  - Total Profit Generated: $3,000
+  - Performance Index: $3,000 ÷ 5 = **$600/day**
+  
+  Even though Salesperson A has generated more total profit, Salesperson B ranks higher on the leaderboard because they have a better daily performance rate.
+</Accordion>
+
+## Leaderboard Display
+
+### Data Model
+
+The leaderboard uses two key data structures:
+
+```java
+public class LeaderBoardObject {
+    private String SalespersonName;
+    private String timestamp;  // Unix timestamp in seconds
+    
+    public LeaderBoardObject(String salespersonName, String timestamp) {
+        this.SalespersonName = salespersonName;
+        this.timestamp = timestamp;
+    }
+}
+```
+
+Source: `LeaderBoardObject.java:7-33`
+
+### Sorting and Ranking
+
+The leaderboard sorts salespersons by performance index in descending order:
+
+```java
+List<Pair<String,SalesPerson>> container = new ArrayList<>();
+for(int i=0; i<performanceIndex.size(); i++){
+    container.add(new Pair<String, SalesPerson>(performanceIndex.get(i), personArrayList.get(i)));
+}
+
+Collections.sort(container, new Comparator<Pair<String, SalesPerson>>() {
+    @Override
+    public int compare(Pair<String, SalesPerson> stringSalesPersonPair, Pair<String, SalesPerson> t1) {
+        return -stringSalesPersonPair.first.compareTo(t1.first);  // Negative for descending
+    }
+});
+
+// Extract top 10
+ArrayList<String> PI = new ArrayList<>();
+ArrayList<SalesPerson> SP = new ArrayList<>();
+for(int i=0; i < Math.min(10, performanceIndex.size()); i++){
+    PI.add(container.get(i).first);
+    SP.add(container.get(i).second);
+}
+```
+
+Source: `LeaderBoardAdapter.java:53-69`
+
+### Leaderboard Item Layout
+
+Each leaderboard entry displays:
+
+<CardGroup cols={3}>
+  <Card title="Rank" icon="medal">
+    Position from 1-10
+  </Card>
+  <Card title="Profile Picture" icon="user-circle">
+    Gravatar image based on email
+  </Card>
+  <Card title="Salesperson Name" icon="id-card">
+    Full name
+  </Card>
+  <Card title="Performance Index" icon="chart-simple">
+    Daily profit average
+  </Card>
+</CardGroup>
+
+Implementation:
+
+```java
+SalesPerson salesPerson = SP.get(position);
+holder.performanceIndex.setText(PI.get(position));
+holder.name.setText(salesPerson.getName());
+holder.rank.setText(String.valueOf(position+1) + ".");
+ImageSetter.setImage(context, holder.imageView, salesPerson.getEmailId(), holder.progressBar);
+```
+
+Source: `LeaderBoardAdapter.java:71-75`
+
+## Target Recommendation Algorithm
+
+The leaderboard includes an intelligent recommendation system that suggests personalized profit targets.
+
+### How It Works
+
+<Steps>
+  <Step title="Access Recommendation">
+    Tap the floating action button (FAB) on the leaderboard screen:
+    
+    ```java
+    fabButton = findViewById(R.id.fabButton);
+    fabButton.setOnClickListener(new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            // Calculate and show target
+        }
+    });
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:63-68`
+  </Step>
+  
+  <Step title="Find Current Salesperson">
+    The system identifies your current performance index:
+    
+    ```java
+    String currName = salesPerson.getName();
+    int i;
+    for(i=0; i<SalespersonList.size(); i++){
+        if(SalespersonList.get(i).getName().equals(currName))
+            break;
+    }
+    Double PiCurr = Double.parseDouble(performanceIndex.get(i));
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:91-100`
+  </Step>
+  
+  <Step title="Find Top Performer">
+    Retrieve the highest performance index:
+    
+    ```java
+    ArrayList<Double> arrayList = new ArrayList<>();
+    for(int i=0; i<performanceIndex.size(); i++){
+        arrayList.add(Double.parseDouble(performanceIndex.get(i)));
+    }
+    Double PiTopper = Collections.max(arrayList);
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:85-92`
+  </Step>
+  
+  <Step title="Calculate Target">
+    The algorithm calculates your target profit:
+    
+    ```java
+    Double targetProfit = (PiCurr + (PiTopper - PiCurr)) * 1.10;
+    target.setText(String.valueOf(targetProfit));
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:106-107`
+    
+    **Formula:** `Target = (Current PI + Gap to Top) × 1.10`
+    
+    <Info>
+      The 1.10 multiplier adds a 10% stretch goal to encourage continuous improvement.
+    </Info>
+  </Step>
+  
+  <Step title="Display Recommendation">
+    A circular progress animation shows your target in a dialog:
+    
+    ```java
+    CircleProgressbar circleProgressbar = mView.findViewById(R.id.circular_progress);
+    circleProgressbar.setForegroundProgressColor(getResources().getColor(R.color.colorPrimary));
+    circleProgressbar.setProgressWithAnimation(100, 1000);  // 1 second animation
+    
+    final AlertDialog dialog = mBuilder.create();
+    dialog.show();
+    ```
+    
+    Source: `LeaderBoardSalesperson.java:109-122`
+  </Step>
+</Steps>
+
+### Target Example
+
+<Accordion title="Example Calculation">
+  **Your Current Performance:**
+  - Performance Index: $400/day
+  
+  **Top Performer:**
+  - Performance Index: $600/day
+  
+  **Your Calculated Target:**
+  - Gap to Top: $600 - $400 = $200
+  - Catch Up Target: $400 + $200 = $600
+  - Stretch Goal: $600 × 1.10 = **$660/day**
+  
+  The system recommends you aim for $660/day to not only reach the current top performer but exceed them by 10%.
+</Accordion>
+
+## User Interface
+
+### Loading State
+
+While calculating performance indices and rankings:
+
+```java
+progressBar = findViewById(R.id.leaderboard_progress);
+progressBar.setVisibility(View.VISIBLE);
+// ... calculations ...
+progressBar.setVisibility(View.GONE);
+```
+
+Source: `LeaderBoardSalesperson.java:59-213`
+
+### RecyclerView Implementation
+
+The leaderboard uses a RecyclerView for smooth scrolling:
+
+```java
+mRecyclerView = findViewById(R.id.leaderboard_recycler_view);
+mAdapter = new LeaderBoardAdapter(getApplicationContext(), SalespersonList, performanceIndex);
+mRecyclerView.setLayoutManager(new LinearLayoutManager(getApplicationContext()));
+mRecyclerView.setAdapter(mAdapter);
+mAdapter.notifyDataSetChanged();
+```
+
+Source: `LeaderBoardSalesperson.java:231-235`
+
+## Real-Time Updates
+
+The leaderboard recalculates rankings whenever:
+- A salesperson records a new sale
+- Inventory items are updated
+- You navigate to the leaderboard screen
+
+<Tip>
+  Rankings update automatically when you open the leaderboard. No manual refresh is needed.
+</Tip>
+
+## Common Use Cases
+
+<AccordionGroup>
+  <Accordion title="Checking Your Rank">
+    1. Open the navigation drawer
+    2. Tap "Leaderboard"
+    3. Scroll through the top 10 list
+    4. Find your name and rank
+    5. Compare your performance index with others
+  </Accordion>
+  
+  <Accordion title="Setting Personal Goals">
+    1. View the leaderboard
+    2. Tap the FAB button
+    3. Review your recommended target
+    4. Note the target profit per day
+    5. Calculate how many sales you need to reach the target
+    6. Track progress by checking the leaderboard regularly
+  </Accordion>
+  
+  <Accordion title="Competitive Motivation">
+    1. Check the leaderboard daily
+    2. Identify salespersons just above your rank
+    3. Calculate the performance index gap
+    4. Focus on closing deals to increase your daily average
+    5. Monitor your climb in the rankings
+  </Accordion>
+  
+  <Accordion title="New Salesperson Tracking">
+    As a new salesperson:
+    1. Your initial performance index may be volatile
+    2. Focus on consistent sales over your first month
+    3. Your index will stabilize as you accumulate more days
+    4. Don't be discouraged by veterans with lower daily rates but higher total sales
+    5. Use the target recommendation to guide your efforts
+  </Accordion>
+</AccordionGroup>
+
+## Performance Tips
+
+<CardGroup cols={2}>
+  <Card title="Consistency Wins" icon="calendar-check">
+    Maintain steady sales every day rather than sporadic high-volume days for better performance index
+  </Card>
+  
+  <Card title="High-Margin Items" icon="sack-dollar">
+    Focus on items with higher profit margins to boost your daily average faster
+  </Card>
+  
+  <Card title="Early Sales" icon="sunrise">
+    Log sales early in the day to see your ranking improve in real-time
+  </Card>
+  
+  <Card title="Target Focused" icon="crosshairs">
+    Use the recommendation algorithm weekly to set realistic short-term goals
+  </Card>
+</CardGroup>
+
+## Understanding the Algorithm
+
+<Accordion title="Why Time-Normalized Metrics?">
+  Time normalization ensures fair competition:
+  
+  **Without normalization:** A salesperson who joined 2 years ago will always rank higher than a new hire, regardless of current performance.
+  
+  **With normalization:** A new salesperson with strong daily sales can quickly rise in rankings, while veterans must maintain high performance to stay on top.
+  
+  This creates a meritocratic system that rewards current performance rather than tenure.
+</Accordion>
+
+<Accordion title="Why the 10% Stretch Goal?">
+  The recommendation algorithm adds 10% to prevent complacency:
+  
+  - **Motivation:** Encourages exceeding the current top performer
+  - **Growth Mindset:** Promotes continuous improvement
+  - **Realistic:** 10% is challenging but achievable
+  - **Team Elevation:** As individuals improve, the entire team's performance rises
+</Accordion>
+
+## Limitations
+
+<Warning>
+  The leaderboard only displays the top 10 performers. If you're ranked 11th or lower, you won't appear on the list but can still use the target recommendation feature.
+</Warning>
+
+<Info>
+  Rankings are calculated synchronously when the leaderboard loads. In large teams, there may be a brief loading period while performance indices are computed.
+</Info>

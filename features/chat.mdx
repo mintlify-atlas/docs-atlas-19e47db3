@@ -1,0 +1,536 @@
+---
+title: Team Chat & Messaging
+description: Real-time communication system with personal manager-salesperson chat and group chat rooms for team collaboration
+---
+
+The Sales Management App includes a comprehensive real-time messaging system powered by Firebase, enabling seamless communication between managers and their sales teams.
+
+## Chat System Overview
+
+<CardGroup cols={2}>
+  <Card title="Personal Chat" icon="comments">
+    One-on-one messaging between salesperson and their assigned manager
+  </Card>
+  <Card title="Chat Room" icon="users">
+    Group chat for team-wide announcements and discussions
+  </Card>
+  <Card title="Real-Time Updates" icon="bolt">
+    Messages appear instantly using Firebase Realtime Database listeners
+  </Card>
+  <Card title="Message History" icon="clock-rotate-left">
+    Complete chat history preserved and accessible anytime
+  </Card>
+</CardGroup>
+
+## Chat Types
+
+### Personal Chat (Manager ↔ Salesperson)
+
+Direct messaging between a salesperson and their manager for:
+- Sales strategy discussions
+- Individual performance feedback
+- Customer support questions
+- Inventory inquiries
+- Personal goal setting
+
+### Chat Room (Team Group Chat)
+
+Group messaging for the entire sales team:
+- Team announcements
+- Product updates
+- Team celebrations
+- Knowledge sharing
+- General collaboration
+
+## Message Data Model
+
+All messages use the `BaseMessage` class:
+
+```java
+public class BaseMessage {
+    String message;      // Message content
+    String senderName;   // Sender's user ID
+    String msgRole;      // "Manager" or "Salesperson"
+    String createdAt;    // Unix timestamp
+    
+    public BaseMessage(String message, String createdAt, String senderName, String msgRole) {
+        this.message = message;
+        this.senderName = senderName;
+        this.createdAt = createdAt;
+        this.msgRole = msgRole;
+    }
+}
+```
+
+Source: `Chat/BaseMessage.java:7-58`
+
+<Info>
+  The `senderName` field actually stores the user's Firebase ID, not their display name. The `msgRole` field determines how the message is displayed.
+</Info>
+
+## Personal Chat (Salesperson to Manager)
+
+### Accessing Personal Chat
+
+Salespersons can message their manager directly:
+
+<Steps>
+  <Step title="Open Navigation Drawer">
+    From the Salesperson dashboard, tap the hamburger menu.
+  </Step>
+  
+  <Step title="Select Message Manager">
+    Tap "Message Manager" from the menu:
+    
+    ```java
+    else if(id1 == R.id.message_manager){
+        databaseReference = FirebaseDatabase.getInstance().getReference("Salesperson");
+        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    if (snapshot.getKey().equals(id)) {
+                        SalesPerson sp = snapshot.getValue(SalesPerson.class);
+                        salespersonName = sp.getName();
+                        managerName = sp.getManagerName();
+                        
+                        Intent intent = new Intent(SalespersonMain.this, 
+                            PersonalChatActivitySalesperson.class);
+                        intent.putExtra("SalespersonName", salespersonName);
+                        intent.putExtra("ManagerName", managerName);
+                        startActivity(intent);
+                    }
+                }
+            }
+        });
+    }
+    ```
+    
+    Source: `SalespersonMain.java:479-505`
+  </Step>
+  
+  <Step title="Chat Interface Loads">
+    The `PersonalChatActivitySalesperson` activity opens with your chat history.
+  </Step>
+</Steps>
+
+### Chat Interface Components
+
+The personal chat interface includes:
+
+```java
+private RecyclerView recyclerView;           // Message list
+private MessageListAdapter messageListAdapter; // Adapter for messages
+private Button sendButton;                   // Send message button
+private EditText chatBox;                    // Message input field
+private String SalespersonName;              // Your name
+private String ManagerName;                  // Manager's name
+```
+
+Source: `Chat/PersonalChatActivityManager.java:35-42`
+
+### Sending Messages
+
+<Steps>
+  <Step title="Type Your Message">
+    Enter text in the chat box at the bottom of the screen.
+  </Step>
+  
+  <Step title="Tap Send">
+    Click the send button to submit your message:
+    
+    ```java
+    sendButton.setOnClickListener(new View.OnClickListener() {
+        @Override
+        public void onClick(View view) {
+            String message = chatBox.getText().toString();
+            
+            // Get current timestamp
+            Long tsLong = System.currentTimeMillis()/1000 - 19800;
+            String ts = tsLong.toString();
+            
+            if(!message.equals("")) {
+                BaseMessage baseMessage = new BaseMessage(
+                    message, 
+                    ts, 
+                    mp.get("id"),    // Your user ID
+                    mp.get("role")   // "Salesperson"
+                );
+                
+                databaseReference = FirebaseDatabase.getInstance()
+                    .getReference("ChatsTable");
+                
+                String key1 = databaseReference.child(tmp1 + "-" + tmp2).push().getKey();
+                databaseReference.child(tmp1 + "-" + tmp2).child(key1).setValue(baseMessage);
+                
+                chatBox.setText("");  // Clear input
+            } else {
+                Toast.makeText(getApplicationContext(), 
+                    "message is empty!!", 
+                    Toast.LENGTH_SHORT).show();
+            }
+        }
+    });
+    ```
+    
+    Source: `Chat/PersonalChatActivityManager.java:122-168`
+  </Step>
+  
+  <Step title="Message Appears">
+    Your message is saved to Firebase and appears immediately in the chat.
+  </Step>
+</Steps>
+
+<Note>
+  Empty messages cannot be sent. The send button validates that the chat box contains text before submitting.
+</Note>
+
+### Firebase Database Structure
+
+Personal chats are stored with a combined key:
+
+```
+ChatsTable/
+  ├─ {ManagerName}-{SalespersonName}/
+  │   ├─ {messageId1}/
+  │   │   ├─ message: "Hello, I have a question about inventory"
+  │   │   ├─ senderName: "userId123"
+  │   │   ├─ msgRole: "Salesperson"
+  │   │   └─ createdAt: "1709501234"
+  │   ├─ {messageId2}/
+  │   │   ├─ message: "Sure, what do you need to know?"
+  │   │   ├─ senderName: "userId456"
+  │   │   ├─ msgRole: "Manager"
+  │   │   └─ createdAt: "1709501298"
+```
+
+The chat room key is constructed by:
+
+```java
+tmp1 = ManagerName.replaceAll("\\s+","");  // Remove spaces from manager name
+tmp2 = SalespersonName.replaceAll("\\s+","");  // Remove spaces from salesperson name
+String chatRoomKey = tmp1 + "-" + tmp2;
+```
+
+Source: `Chat/PersonalChatActivityManager.java:67-68`
+
+### Real-Time Message Updates
+
+Messages appear instantly using Firebase ChildEventListener:
+
+```java
+databaseReference.child(tmp1+"-"+tmp2).addChildEventListener(new ChildEventListener() {
+    @Override
+    public void onChildAdded(@NonNull DataSnapshot dataSnapshot, @Nullable String s) {
+        databaseReference.child(tmp1+"-"+tmp2)
+            .addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    final ArrayList<BaseMessage> mMessages = new ArrayList<>();
+                    
+                    for(DataSnapshot dataSnapshot1 : dataSnapshot.getChildren()){
+                        BaseMessage bm = dataSnapshot1.getValue(BaseMessage.class);
+                        mMessages.add(bm);
+                    }
+                    
+                    messageListAdapter = new MessageListAdapter(getApplicationContext(), mMessages);
+                    LinearLayoutManager linearLayoutManager = new LinearLayoutManager(getApplicationContext());
+                    recyclerView.setLayoutManager(linearLayoutManager);
+                    recyclerView.setAdapter(messageListAdapter);
+                    messageListAdapter.notifyDataSetChanged();
+                    recyclerView.smoothScrollToPosition(mMessages.size()-1);  // Scroll to bottom
+                }
+            });
+    }
+    // ... other listener methods
+});
+```
+
+Source: `Chat/PersonalChatActivityManager.java:70-120`
+
+<Tip>
+  The chat automatically scrolls to the newest message when you send or receive a message.
+</Tip>
+
+## Personal Chat (Manager to Salesperson)
+
+Managers can initiate chats with individual salespersons:
+
+### From Chat Room
+
+Managers access personal chats through the Chat Room interface:
+
+<Steps>
+  <Step title="Open Chat Room">
+    From the Manager dashboard, navigate to "Chat Room" in the navigation drawer:
+    
+    ```java
+    else if(id == R.id.chat_room){
+        SessionManager sessionManager = new SessionManager(getApplicationContext());
+        final String idManager = sessionManager.getUserDetails().get("id");
+        
+        databaseRef = FirebaseDatabase.getInstance().getReference("Manager");
+        databaseRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for(DataSnapshot dataSnapshot1:dataSnapshot.getChildren()){
+                    if(dataSnapshot1.getKey().equals(idManager)){
+                        SalesManager salesManager = dataSnapshot1.getValue(SalesManager.class);
+                        
+                        Intent intent = new Intent(ManagerMain.this, ChatRoom.class);
+                        intent.putExtra("ManagerNumber", salesManager.getNumber());
+                        intent.putExtra("Name", salesManager.getName());
+                        startActivity(intent);
+                    }
+                }
+            }
+        });
+    }
+    ```
+    
+    Source: `ManagerMain.java:392-416`
+  </Step>
+  
+  <Step title="Select Salesperson">
+    The Chat Room displays a list of all salespersons under this manager. Tap any salesperson to open a personal chat.
+  </Step>
+  
+  <Step title="Send Messages">
+    The chat interface is identical to the salesperson view, with messages distinguished by the `msgRole` field.
+  </Step>
+</Steps>
+
+## Group Chat Room
+
+Both Managers and Salespersons can access the team chat room.
+
+### Accessing Chat Room
+
+**For Managers:**
+```java
+else if(id == R.id.chat_room){
+    Intent intent = new Intent(ManagerMain.this, ChatRoom.class);
+    intent.putExtra("ManagerNumber", salesManager.getNumber());
+    intent.putExtra("Name", salesManager.getName());
+    startActivity(intent);
+}
+```
+
+Source: `ManagerMain.java:392-416`
+
+**For Salespersons:**
+```java
+else if(id1 == R.id.chat_room){
+    // Get manager details
+    DatabaseReference databaseReference1 = FirebaseDatabase.getInstance()
+        .getReference("Manager");
+    databaseReference1.addListenerForSingleValueEvent(new ValueEventListener() {
+        @Override
+        public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+            for(DataSnapshot dataSnapshot1: dataSnapshot.getChildren()){
+                SalesManager salesManager = dataSnapshot1.getValue(SalesManager.class);
+                if(salesManager.getName().equals(thisManagerName)){
+                    Intent intent = new Intent(SalespersonMain.this, ChatRoom.class);
+                    intent.putExtra("ManagerNumber", salesManager.getNumber());
+                    intent.putExtra("Name", SalesPersonName);
+                    startActivity(intent);
+                }
+            }
+        }
+    });
+}
+```
+
+Source: `SalespersonMain.java:506-555`
+
+### Chat Room Interface
+
+The `ChatRoom` activity displays:
+
+1. **List of Team Members**: All salespersons under the manager
+2. **Personal Chat Access**: Tap any member to open 1-on-1 chat
+3. **Group Chat**: Team-wide messaging (if implemented)
+
+The ChatRoom uses a RecyclerView with `ChatRoomAdapter`:
+
+```java
+public class ChatRoom extends AppCompatActivity {
+    private RecyclerView recyclerView;
+    private ChatRoomAdapter chatRoomAdapter;
+    // Implementation details
+}
+```
+
+Source: `Chat/ChatRoom.java:12`
+
+## Message Display
+
+Messages are displayed differently based on sender:
+
+### Message Types
+
+<CardGroup cols={2}>
+  <Card title="Sent Messages" icon="paper-plane">
+    Right-aligned, different background color
+  </Card>
+  <Card title="Received Messages" icon="inbox">
+    Left-aligned, distinct styling
+  </Card>
+</CardGroup>
+
+### Message Adapter
+
+The `MessageListAdapter` handles message rendering:
+
+```java
+public class MessageListAdapter extends RecyclerView.Adapter {
+    private static final int VIEW_TYPE_MESSAGE_SENT = 1;
+    private static final int VIEW_TYPE_MESSAGE_RECEIVED = 2;
+    
+    @Override
+    public int getItemViewType(int position) {
+        BaseMessage message = mMessageList.get(position);
+        
+        // Determine if message was sent by current user
+        if (message.getSenderName().equals(currentUserId)) {
+            return VIEW_TYPE_MESSAGE_SENT;
+        } else {
+            return VIEW_TYPE_MESSAGE_RECEIVED;
+        }
+    }
+    
+    @Override
+    public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+        if (viewType == VIEW_TYPE_MESSAGE_SENT) {
+            // Inflate sent message layout
+        } else {
+            // Inflate received message layout
+        }
+    }
+}
+```
+
+Source: Referenced in `Chat/MessageListAdapter.java:12`
+
+### Message Holders
+
+Two ViewHolder classes handle different message types:
+
+```java
+public class MessageHolder extends RecyclerView.ViewHolder {
+    // Sent message view holder
+}
+
+public class ReceivedMessageHolder extends RecyclerView.ViewHolder {
+    // Received message view holder  
+}
+```
+
+Source: `Chat/MessageHolder.java:5` and `Chat/ReceivedMessageHolder.java:8`
+
+## Timestamp Handling
+
+Messages include Unix timestamps for ordering:
+
+```java
+Long tsLong = System.currentTimeMillis()/1000 - 19800;
+String ts = tsLong.toString();
+```
+
+<Note>
+  The timestamp subtracts 19800 seconds (5.5 hours) to adjust for IST timezone. This is a timezone offset adjustment.
+</Note>
+
+## Common Workflows
+
+<AccordionGroup>
+  <Accordion title="Salesperson: Asking Manager a Question">
+    1. Open navigation drawer
+    2. Tap "Message Manager"
+    3. Type your question in the chat box
+    4. Tap send button
+    5. Wait for manager's response (appears automatically)
+    6. Continue conversation as needed
+  </Accordion>
+  
+  <Accordion title="Manager: Responding to Salesperson">
+    1. Open Chat Room from navigation drawer
+    2. See list of salespersons
+    3. Tap the salesperson who messaged you
+    4. View their message in the chat
+    5. Type your response
+    6. Send message
+    7. Message appears in both your view and theirs
+  </Accordion>
+  
+  <Accordion title="Manager: Team Announcement">
+    1. Open Chat Room
+    2. Access group chat (if available)
+    3. Type announcement
+    4. Send to all team members
+    5. All salespersons see the message in their Chat Room
+  </Accordion>
+  
+  <Accordion title="Viewing Chat History">
+    1. Open personal chat or chat room
+    2. Scroll up to see older messages
+    3. All messages are preserved since chat creation
+    4. Messages are ordered chronologically
+  </Accordion>
+</AccordionGroup>
+
+## Best Practices
+
+<CardGroup cols={2}>
+  <Card title="Response Time" icon="clock">
+    Check messages regularly for timely responses to team inquiries
+  </Card>
+  
+  <Card title="Professional Tone" icon="briefcase">
+    Maintain professional communication in all chats
+  </Card>
+  
+  <Card title="Message Clarity" icon="message-check">
+    Be clear and concise in messages to avoid confusion
+  </Card>
+  
+  <Card title="Important Info" icon="bookmark">
+    Use chat for quick questions; email critical documents
+  </Card>
+</CardGroup>
+
+## Limitations
+
+<Warning>
+  - Messages cannot be edited after sending
+  - Messages cannot be deleted
+  - No read receipts to confirm message viewing
+  - No typing indicators
+  - No file attachments (text only)
+</Warning>
+
+<Info>
+  The chat system is designed for real-time text communication. For sharing documents, images, or files, use alternative methods like email.
+</Info>
+
+## Technical Details
+
+<Accordion title="Firebase Realtime Database Listeners">
+  The chat uses Firebase ChildEventListener for real-time updates:
+  
+  - `onChildAdded`: Triggered when a new message is sent
+  - `onChildChanged`: Would handle message edits (not implemented)
+  - `onChildRemoved`: Would handle message deletions (not implemented)
+  
+  This ensures messages appear instantly without polling or manual refresh.
+</Accordion>
+
+<Accordion title="Chat Room Naming Convention">
+  Chat rooms are named by concatenating manager and salesperson names with spaces removed:
+  
+  - Manager: "John Smith"
+  - Salesperson: "Jane Doe"
+  - Chat Room Key: `"JohnSmith-JaneDoe"`
+  
+  This creates unique, predictable chat room identifiers for each manager-salesperson pair.
+</Accordion>

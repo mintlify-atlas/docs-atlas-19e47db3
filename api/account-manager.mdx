@@ -1,0 +1,482 @@
+---
+title: AccountManager Activity
+description: User profile management activity for viewing account details, uploading profile pictures, and managing authentication
+---
+
+## Overview
+
+The `AccountManager` activity provides account management functionality for both managers and salespersons in the Sales Management application. It displays user profile information, allows profile picture uploads to Firebase Storage, and handles password reset and logout operations.
+
+**Package:** `project.avishkar.salesmanagement`
+
+**Extends:** `AppCompatActivity`
+
+## Key Features
+
+- Display user profile information (name, email, mobile, organization)
+- Profile picture upload with image compression
+- Firebase Storage integration for profile images
+- Password reset via Firebase Authentication email
+- Logout functionality with session clearing
+- Role-based data loading (Manager/Salesperson)
+
+## UI Components
+
+### Display Fields
+
+```java
+private TextView update_email;     // Displays user email
+private TextView update_mobile;    // Displays phone number
+private TextView update_name;      // Displays user name
+private TextView update_org;       // Displays organization name
+private TextView change_password;  // Password reset trigger
+private TextView logout;           // Logout trigger
+```
+
+### Image Components
+
+```java
+protected ImageView imageView;      // Profile picture display
+private ImageView imageChooser;     // Image selection button
+private ImageView imageUploader;    // Upload button
+```
+
+### Instance Variables
+
+```java
+private static final int PICK_IMAGE_REQUEST = 234;
+private Uri filePath;
+private StorageReference storageReference;
+private DatabaseReference mDatabase;
+private String downloadUrl;
+private String currEmail, currMobile, currName, currOrg, currPass;
+private FirebaseAuth auth;
+private byte[] imageDataInByte;
+```
+
+## Lifecycle Methods
+
+### onCreate(Bundle savedInstanceState)
+
+Initializes Firebase references and loads user data based on role:
+
+```java
+@Override
+protected void onCreate(@Nullable Bundle savedInstanceState) {
+    super.onCreate(savedInstanceState);
+    setContentView(R.layout.my_account);
+    
+    storageReference = FirebaseStorage.getInstance().getReference();
+    mDatabase = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_UPLOADS);
+    auth = FirebaseAuth.getInstance();
+    
+    SessionManager sm = new SessionManager(getApplicationContext());
+    HashMap<String, String> details = sm.getUserDetails();
+    final String id = details.get("id");
+    final String role = details.get("role");
+    
+    if(role.equals("Manager")) {
+        // Load manager data
+    } else {
+        // Load salesperson data
+    }
+}
+```
+
+<Info>
+The activity uses a `ProgressDialog` with a 1-second delay to ensure Firebase data is fully loaded before displaying to the user.
+</Info>
+
+## Data Loading
+
+### Loading Manager Data
+
+Retrieves manager information from Firebase:
+
+```java
+reference = FirebaseDatabase.getInstance().getReference("Manager");
+
+final ProgressDialog dialog = ProgressDialog.show(
+    AccountManager.this, 
+    "Loading...", 
+    "Please wait...", 
+    true
+);
+
+Handler handler = new Handler();
+handler.postDelayed(new Runnable() {
+    public void run() {
+        reference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                    sm1 = snapshot.getValue(SalesManager.class);
+                    if(snapshot.getKey().equals(id)) {
+                        currName = sm1.getName();
+                        currPass = sm1.getPassword();
+                        currOrg = sm1.getOrgName();
+                        currMobile = sm1.getNumber();
+                        currEmail = sm1.getEmail();
+                        
+                        // Load profile image
+                        ImageSetter.setImage(
+                            getApplicationContext(), 
+                            imageView, 
+                            currEmail, 
+                            spinnerImage
+                        );
+                        break;
+                    }
+                }
+                
+                update_name.setText(currName);
+                update_org.setText(currOrg);
+                update_email.setText(currEmail);
+                update_mobile.setText(currMobile);
+                dialog.dismiss();
+            }
+        });
+    }
+}, 1000);  // 1000 milliseconds
+```
+
+### Loading Salesperson Data
+
+Retrieves salesperson information and associated manager's organization:
+
+```java
+reference = FirebaseDatabase.getInstance().getReference("Salesperson");
+
+reference.addValueEventListener(new ValueEventListener() {
+    @Override
+    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+        for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+            sp1 = snapshot.getValue(SalesPerson.class);
+            if (snapshot.getKey().equals(id)) {
+                currPass = sp1.getPassword();
+                currName = sp1.getName();
+                currMobile = sp1.getNumber();
+                currEmail = sp1.getEmailId();
+                
+                final String currManager = sp1.getManagerName();
+                
+                // Fetch manager's organization name
+                reference = FirebaseDatabase.getInstance().getReference("Manager");
+                reference.addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                        for (DataSnapshot snapshot : dataSnapshot.getChildren()) {
+                            sm2 = snapshot.getValue(SalesManager.class);
+                            if (sm2.getName().equals(currManager)) {
+                                currOrg = sm2.getOrgName();
+                                break;
+                            }
+                        }
+                        // Update UI
+                        update_name.setText(currName);
+                        update_org.setText(currOrg);
+                        update_email.setText(currEmail);
+                        update_mobile.setText(currMobile);
+                        ImageSetter.setImage(
+                            getApplicationContext(), 
+                            imageView, 
+                            currEmail, 
+                            spinnerImage
+                        );
+                        dialog.dismiss();
+                    }
+                });
+                break;
+            }
+        }
+    }
+});
+```
+
+<Note>
+Salespersons don't have their own organization field. The activity fetches the organization name from their associated manager's record.
+</Note>
+
+## Profile Picture Management
+
+### Image Selection
+
+Opens the device's image picker:
+
+```java
+private void showFileChooser() {
+    Intent intent = new Intent();
+    intent.setType("image/*");
+    intent.setAction(Intent.ACTION_GET_CONTENT);
+    startActivityForResult(
+        Intent.createChooser(intent, "Select Picture"), 
+        PICK_IMAGE_REQUEST
+    );
+}
+
+imageChooser.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        showFileChooser();
+    }
+});
+```
+
+### Image Processing
+
+Handles selected image with compression:
+
+```java
+@Override
+protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+    super.onActivityResult(requestCode, resultCode, data);
+    if(requestCode == PICK_IMAGE_REQUEST && 
+       resultCode == RESULT_OK && 
+       data != null && 
+       data.getData() != null) {
+        
+        filePath = data.getData();
+        try {
+            Bitmap bitmap = MediaStore.Images.Media.getBitmap(
+                getContentResolver(), 
+                filePath
+            );
+            
+            // Compress image to 20% quality
+            ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 20, byteArrayOutputStream);
+            imageDataInByte = byteArrayOutputStream.toByteArray();
+            
+            // Display in ImageView with circular crop
+            Glide.with(getApplicationContext())
+                .load(bitmap)
+                .apply(RequestOptions.circleCropTransform())
+                .into(imageView);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+```
+
+<Info>
+Images are compressed to 20% JPEG quality to reduce storage costs and improve upload speed while maintaining acceptable visual quality for profile pictures.
+</Info>
+
+### Image Upload to Firebase Storage
+
+Uploads the compressed image and stores the URL in Firebase Realtime Database:
+
+```java
+private void uploadFile() {
+    if(filePath != null) {
+        final ProgressDialog progressDialog = new ProgressDialog(this);
+        progressDialog.setTitle("Uploading");
+        progressDialog.show();
+        
+        final String fileName = Constants.STORAGE_PATH_UPLOADS + 
+                                System.currentTimeMillis() + "." + 
+                                getFileExtension(filePath);
+        final StorageReference sRef = storageReference.child(fileName);
+        
+        sRef.putBytes(imageDataInByte)
+            .addOnSuccessListener(new OnSuccessListener<UploadTask.TaskSnapshot>() {
+                @Override
+                public void onSuccess(UploadTask.TaskSnapshot taskSnapshot) {
+                    progressDialog.dismiss();
+                    Toast.makeText(getApplicationContext(), 
+                                   "File uploaded", 
+                                   Toast.LENGTH_LONG).show();
+                    
+                    Task<Uri> s = sRef.getDownloadUrl()
+                        .addOnCompleteListener(new OnCompleteListener<Uri>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Uri> task) {
+                                downloadUrl = task.getResult().toString();
+                                upload = new Upload(currEmail, downloadUrl);
+                                
+                                // Store or update in database
+                                mDatabase.addListenerForSingleValueEvent(
+                                    new ValueEventListener() {
+                                        @Override
+                                        public void onDataChange(
+                                            @NonNull DataSnapshot dataSnapshot) {
+                                            int flag = 0;
+                                            for(DataSnapshot snapshot : 
+                                                dataSnapshot.getChildren()) {
+                                                if(snapshot.getValue(Upload.class)
+                                                    .getEmail().equals(currEmail)) {
+                                                    mDatabase.child(snapshot.getKey())
+                                                        .setValue(upload);
+                                                    flag = 1;
+                                                    break;
+                                                }
+                                            }
+                                            if(flag != 1) {
+                                                String uploadId = mDatabase.push()
+                                                    .getKey();
+                                                mDatabase.child(uploadId)
+                                                    .setValue(upload);
+                                            }
+                                        }
+                                    });
+                            }
+                        });
+                }
+            })
+            .addOnFailureListener(new OnFailureListener() {
+                @Override
+                public void onFailure(@NonNull Exception e) {
+                    progressDialog.dismiss();
+                    Toast.makeText(getApplicationContext(), 
+                                   "Upload failed!!", 
+                                   Toast.LENGTH_LONG).show();
+                }
+            })
+            .addOnProgressListener(new OnProgressListener<UploadTask.TaskSnapshot>() {
+                @Override
+                public void onProgress(UploadTask.TaskSnapshot taskSnapshot) {
+                    double progress = (100.0 * taskSnapshot.getBytesTransferred()) / 
+                                      taskSnapshot.getTotalByteCount();
+                    progressDialog.setMessage("Uploaded " + (int)progress + "%...");
+                }
+            });
+    } else {
+        Toast.makeText(getApplicationContext(), 
+                       "No image selected!!", 
+                       Toast.LENGTH_LONG).show();
+    }
+}
+
+imageUploader.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        uploadFile();
+    }
+});
+```
+
+### File Extension Helper
+
+```java
+public String getFileExtension(Uri uri) {
+    ContentResolver cR = getContentResolver();
+    MimeTypeMap mime = MimeTypeMap.getSingleton();
+    return mime.getExtensionFromMimeType(cR.getType(uri));
+}
+```
+
+<Note>
+The upload system checks if a profile picture already exists for the user's email. If found, it updates the existing record; otherwise, it creates a new one.
+</Note>
+
+## Password Reset
+
+Sends a password reset email using Firebase Authentication:
+
+```java
+change_password.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View view) {
+        new FancyAlertDialog.Builder(AccountManager.this)
+            .setTitle("Warning!!!")
+            .setBackgroundColor(Color.parseColor("#00A144"))
+            .setMessage("Do you really want to change password ?")
+            .setNegativeBtnText("No")
+            .setPositiveBtnBackground(Color.parseColor("#FF4081"))
+            .setPositiveBtnText("Yes")
+            .setNegativeBtnBackground(Color.parseColor("#FFA9A7A8"))
+            .setAnimation(Animation.POP)
+            .isCancellable(true)
+            .setIcon(R.drawable.ic_error_outline_black_24dp, Icon.Visible)
+            .OnPositiveClicked(new FancyAlertDialogListener() {
+                @Override
+                public void OnClick() {
+                    auth.sendPasswordResetEmail(update_email.getText().toString())
+                        .addOnCompleteListener(new OnCompleteListener<Void>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Void> task) {
+                                if (task.isSuccessful()) {
+                                    Toast.makeText(
+                                        AccountManager.this, 
+                                        "We have sent you instructions to reset your password!", 
+                                        Toast.LENGTH_SHORT
+                                    ).show();
+                                } else {
+                                    Toast.makeText(
+                                        AccountManager.this, 
+                                        "Failed to send reset email!", 
+                                        Toast.LENGTH_SHORT
+                                    ).show();
+                                }
+                            }
+                        });
+                }
+            })
+            .build();
+    }
+});
+```
+
+<Info>
+Password resets are handled through Firebase Authentication's built-in email system, ensuring secure password recovery without storing passwords locally.
+</Info>
+
+## Logout Functionality
+
+Clears session and returns to login screen:
+
+```java
+logout.setOnClickListener(new View.OnClickListener() {
+    @Override
+    public void onClick(View v) {
+        SessionManager sm = new SessionManager(getApplicationContext());
+        sm.logoutUser();
+        auth.signOut();
+        
+        Intent intent = new Intent(AccountManager.this, MainActivity.class);
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TASK | Intent.FLAG_ACTIVITY_NEW_TASK);
+        startActivity(intent);
+        finish();
+    }
+});
+```
+
+<Note>
+The logout process clears both the local session (via `SessionManager`) and the Firebase Authentication session, then clears the activity stack to prevent returning to authenticated screens via the back button.
+</Note>
+
+## Firebase Integration
+
+### Storage Reference
+
+```java
+storageReference = FirebaseStorage.getInstance().getReference();
+```
+
+Used for uploading profile pictures to Firebase Storage.
+
+### Database Reference
+
+```java
+mDatabase = FirebaseDatabase.getInstance().getReference(Constants.DATABASE_UPLOADS);
+```
+
+Stores the mapping between user emails and their profile picture URLs.
+
+### Authentication
+
+```java
+auth = FirebaseAuth.getInstance();
+```
+
+Handles password reset emails and logout operations.
+
+## Related Classes
+
+- `SalesManager` - Data model for manager users
+- `SalesPerson` - Data model for salesperson users
+- `Upload` - Data model for profile picture uploads (email and URL)
+- `SessionManager` - Manages local user session
+- `ImageSetter` - Utility for loading and displaying profile images
+- `Constants` - Application constants including storage paths

@@ -1,0 +1,138 @@
+---
+title: 'SalesPerson'
+description: 'Core class representing a salesperson with authentication, manager association, and inventory tracking'
+---
+
+## Overview
+
+The `SalesPerson` class represents a salesperson in the application. It stores salesperson credentials, contact information, manager association, and manages an inventory of items assigned to the salesperson.
+
+## Constructor
+
+### Default Constructor
+
+```java
+public SalesPerson()
+```
+
+Creates an empty SalesPerson instance with no initialized fields.
+
+### Parameterized Constructor
+
+```java
+public SalesPerson(String name, String number, String password, String managerName, String Email)
+```
+
+Creates a SalesPerson with specified credentials and manager association.
+
+<ParamField path="name" type="String">
+  The name of the salesperson
+</ParamField>
+
+<ParamField path="number" type="String">
+  The phone number of the salesperson
+</ParamField>
+
+<ParamField path="password" type="String">
+  The password for authentication
+</ParamField>
+
+<ParamField path="managerName" type="String">
+  The name of the manager this salesperson reports to
+</ParamField>
+
+<ParamField path="Email" type="String">
+  The email address of the salesperson
+</ParamField>
+
+## Fields
+
+<ResponseField name="name" type="String" required>
+  The name of the salesperson
+</ResponseField>
+
+<ResponseField name="number" type="String" required>
+  The phone number of the salesperson
+</ResponseField>
+
+<ResponseField name="password" type="String" required>
+  The password for authentication
+</ResponseField>
+
+<ResponseField name="managerName" type="String" required>
+  The name of the manager this salesperson reports to
+</ResponseField>
+
+<ResponseField name="emailId" type="String" required>
+  The email address of the salesperson
+</ResponseField>
+
+<ResponseField name="inventoryItems" type="ArrayList<InventoryItem>" required>
+  List of inventory items assigned to this salesperson
+</ResponseField>
+
+## Methods
+
+### getName()
+
+```java
+public String getName()
+```
+
+Returns the name of the salesperson.
+
+**Returns:** `String` - The salesperson's name
+
+### getNumber()
+
+```java
+public String getNumber()
+```
+
+Returns the phone number of the salesperson.
+
+**Returns:** `String` - The salesperson's phone number
+
+### getPassword()
+
+```java
+public String getPassword()
+```
+
+Returns the password of the salesperson.
+
+**Returns:** `String` - The salesperson's password
+
+### getManagerName()
+
+```java
+public String getManagerName()
+```
+
+Returns the name of the manager this salesperson reports to.
+
+**Returns:** `String` - The manager's name
+
+### getEmailId()
+
+```java
+public String getEmailId()
+```
+
+Returns the email address of the salesperson.
+
+**Returns:** `String` - The salesperson's email address
+
+### getInventoryItems()
+
+```java
+public ArrayList<InventoryItem> getInventoryItems()
+```
+
+Returns the list of inventory items assigned to this salesperson.
+
+**Returns:** `ArrayList<InventoryItem>` - The list of inventory items
+
+## Source Code Location
+
+`~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/SalesPerson.java`

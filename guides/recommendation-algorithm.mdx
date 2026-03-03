@@ -1,0 +1,353 @@
+---
+title: Recommendation Algorithm
+description: Understand how the system calculates personalized sales targets based on performance data
+---
+
+## Overview
+
+The Sales Management App includes an intelligent recommendation algorithm that provides personalized sales targets to help salespersons improve their performance. This guide explains how the algorithm works and how to use its recommendations effectively.
+
+## Accessing Recommendations
+
+<Steps>
+  <Step title="Navigate to Leaderboard">
+    Open the Leaderboard from the salesperson sidebar menu.
+  </Step>
+
+  <Step title="View Your Ranking">
+    Wait for the leaderboard to load and display all team members ranked by Performance Index.
+  </Step>
+
+  <Step title="Get Your Recommendation">
+    Click the floating action button (FAB) on the leaderboard screen to see your personalized target.
+  </Step>
+</Steps>
+
+<Note>
+  The recommendation algorithm is only available to salespersons and appears on the leaderboard screen (source:~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/Leaderboard/LeaderBoardSalesperson.java:66).
+</Note>
+
+## How the Algorithm Works
+
+The recommendation system uses a multi-step calculation process to determine your optimal sales target.
+
+### Step 1: Calculate Performance Index
+
+For each salesperson, the system calculates a Performance Index (PI):
+
+```python
+Performance Index = Total Profit Generated / Days Since Registration
+```
+
+**Components:**
+- **Total Profit Generated**: Sum of (Items Sold × Profit Per Item) across all products
+- **Days Since Registration**: Time elapsed since the salesperson joined the team
+
+<Tip>
+  The Performance Index normalizes profit over time, ensuring fair comparison between veteran salespersons and new team members.
+</Tip>
+
+### Step 2: Data Collection
+
+The algorithm collects data for all salespersons under the same manager:
+
+<Steps>
+  <Step title="Retrieve Salesperson List">
+    System queries all salespersons linked to the current manager.
+  </Step>
+
+  <Step title="Calculate Individual Profits">
+    For each salesperson, the algorithm iterates through their inventory to calculate:
+    ```javascript
+    totalProfit = Σ(inventoryItem.sold × inventoryItem.profit)
+    ```
+  </Step>
+
+  <Step title="Fetch Registration Timestamps">
+    System retrieves signup timestamps from the LeaderBoard database node (source:~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/Leaderboard/LeaderBoardSalesperson.java:193).
+  </Step>
+
+  <Step title="Compute Time Differences">
+    ```javascript
+    daysSinceSignup = ((currentTime - signupTime) / 86400) + 1
+    ```
+    <Note>Time is calculated in seconds and divided by 86400 (seconds per day). Adding 1 prevents division by zero for new members.</Note>
+  </Step>
+
+  <Step title="Calculate Performance Indices">
+    For each salesperson:
+    ```javascript
+    performanceIndex = totalProfit / daysSinceSignup
+    ```
+  </Step>
+</Steps>
+
+### Step 3: Identify Top Performer
+
+The algorithm identifies the highest Performance Index in the team:
+
+```python
+PI_topper = max(performanceIndex[])
+```
+
+This represents the best-performing salesperson's normalized profit rate.
+
+### Step 4: Calculate Recommended Target
+
+For the current salesperson, the algorithm calculates their target profit:
+
+```python
+Target Profit = (PI_current + (PI_topper - PI_current)) × 1.10
+```
+
+**Breaking down the formula:**
+
+1. **PI_current**: Your current Performance Index
+2. **PI_topper**: The top performer's Performance Index  
+3. **(PI_topper - PI_current)**: The gap between you and the top performer
+4. **PI_current + gap**: Your PI if you matched the top performer
+5. **× 1.10**: Adds 10% growth factor for continuous improvement
+
+<CardGroup cols={2}>
+  <Card title="Conservative Growth" icon="seedling">
+    The algorithm doesn't expect you to jump directly to the top performer's level.
+  </Card>
+  <Card title="Realistic Targets" icon="bullseye">
+    By closing the gap incrementally, targets remain achievable and motivating.
+  </Card>
+  <Card title="Continuous Improvement" icon="arrow-trend-up">
+    The 10% growth factor ensures even top performers have stretch goals.
+  </Card>
+  <Card title="Fair Competition" icon="handshake">
+    All calculations use time-normalized data for equitable comparisons.
+  </Card>
+</CardGroup>
+
+## Example Calculation
+
+Let's walk through a real-world example:
+
+### Scenario Setup
+
+**Your Performance:**
+- Total Profit Generated: $5,000
+- Days Since Registration: 50 days
+- Your PI: $5,000 / 50 = $100 per day
+
+**Top Performer:**
+- Total Profit Generated: $8,000
+- Days Since Registration: 40 days
+- Their PI: $8,000 / 40 = $200 per day
+
+### Target Calculation
+
+<Steps>
+  <Step title="Calculate Gap">
+    ```
+    Gap = PI_topper - PI_current
+    Gap = $200 - $100 = $100 per day
+    ```
+  </Step>
+
+  <Step title="Add Gap to Your PI">
+    ```
+    Matched Performance = $100 + $100 = $200 per day
+    ```
+  </Step>
+
+  <Step title="Apply Growth Factor">
+    ```
+    Target = $200 × 1.10 = $220 per day
+    ```
+  </Step>
+
+  <Step title="Your Recommended Target">
+    **Target Profit: $220 per day**
+    
+    This means you should aim to generate $220 in daily profit to improve your ranking and performance.
+  </Step>
+</Steps>
+
+### Interpreting Your Target
+
+With a target of $220/day:
+- You need to increase daily performance by 120% ($100 → $220)
+- This closes the gap with the top performer and adds 10% growth
+- If you achieve this consistently, you'll become the new top performer
+- The algorithm will then give you a new target based on your improved PI
+
+## Implementation Details
+
+The algorithm is implemented in the LeaderBoardSalesperson class (source:~/workspace/source/app/src/main/java/project/avishkar/salesmanagement/Leaderboard/LeaderBoardSalesperson.java:66-135).
+
+### Key Code Flow
+
+<Steps>
+  <Step title="User Triggers Recommendation">
+    Salesperson clicks the FAB button on the leaderboard screen.
+  </Step>
+
+  <Step title="Retrieve Current User Data">
+    ```java
+    DatabaseReference.getReference("Salesperson")
+      .addListenerForSingleValueEvent()
+    ```
+    System fetches the current salesperson's data using session ID.
+  </Step>
+
+  <Step title="Access Performance Index Array">
+    The performanceIndex ArrayList contains PI values for all team members in the same order as the leaderboard.
+  </Step>
+
+  <Step title="Find Maximum PI">
+    ```java
+    Double PiTopper = Collections.max(arrayList)
+    ```
+    Identifies the highest-performing salesperson's PI.
+  </Step>
+
+  <Step title="Locate Current User's Position">
+    ```java
+    for(i=0; i<SalespersonList.size(); i++) {
+      if(SalespersonList.get(i).getName().equals(currName))
+        break;
+    }
+    ```
+    Finds the current user's index in the leaderboard.
+  </Step>
+
+  <Step title="Calculate Target">
+    ```java
+    Double PiCurr = Double.parseDouble(performanceIndex.get(i));
+    Double targetProfit = (PiCurr + (PiTopper - PiCurr)) * 1.10;
+    ```
+  </Step>
+
+  <Step title="Display Recommendation">
+    Shows the target in a custom dialog with a circular progress animation.
+  </Step>
+</Steps>
+
+## Benefits of the Algorithm
+
+<CardGroup cols={2}>
+  <Card title="Personalized Goals" icon="user">
+    Each salesperson receives a target based on their specific performance level and the team context.
+  </Card>
+  <Card title="Motivation Through Competition" icon="trophy">
+    Seeing the gap to the top performer motivates improvement while keeping goals realistic.
+  </Card>
+  <Card title="Fair Comparisons" icon="scale-balanced">
+    Time normalization ensures new members aren't disadvantaged against veterans.
+  </Card>
+  <Card title="Continuous Improvement" icon="repeat">
+    The 10% growth factor ensures that achieving your target pushes you to new heights.
+  </Card>
+  <Card title="Team Benchmarking" icon="users">
+    Targets are based on real team performance, not arbitrary corporate goals.
+  </Card>
+  <Card title="Dynamic Updates" icon="refresh">
+    As team performance changes, so do the recommendations, keeping them relevant.
+  </Card>
+</CardGroup>
+
+## Using Recommendations Effectively
+
+### For Salespersons
+
+<Steps>
+  <Step title="Check Your Target Regularly">
+    Review your recommended target at least weekly to stay focused on improvement.
+  </Step>
+
+  <Step title="Break Down the Goal">
+    If your target is $220/day:
+    - Calculate how many units you need to sell
+    - Identify high-profit items to prioritize
+    - Plan your daily sales activities
+  </Step>
+
+  <Step title="Track Progress">
+    Use the Statistics view to monitor your daily profit and compare it against your target.
+  </Step>
+
+  <Step title="Adjust Strategy">
+    If you're consistently missing your target:
+    - Focus on higher-profit items
+    - Increase sales volume
+    - Learn from top performers
+  </Step>
+</Steps>
+
+### For Managers
+
+While managers don't see individual recommendations, understanding the algorithm helps you:
+
+<CardGroup cols={2}>
+  <Card title="Coach Effectively" icon="chalkboard-user">
+    Explain how the targets work to help salespersons understand their goals.
+  </Card>
+  <Card title="Set Inventory Strategy" icon="boxes-stacked">
+    Stock higher-profit items to help salespersons reach their targets.
+  </Card>
+  <Card title="Identify Struggling Members" icon="user-shield">
+    If someone consistently misses their target, provide additional support.
+  </Card>
+  <Card title="Celebrate Top Performers" icon="award">
+    Recognize that the top performer's success influences the entire team's targets.
+  </Card>
+</CardGroup>
+
+## Algorithm Limitations
+
+<Note>
+  While powerful, the algorithm has some considerations to keep in mind.
+</Note>
+
+### Edge Cases
+
+1. **New Team Members**: Salespersons registered for only 1-2 days may see volatile targets as their PI stabilizes.
+
+2. **Small Teams**: In teams with only 2-3 salespersons, one strong performer can create very high targets for others.
+
+3. **Product Mix Changes**: If a manager adds high-profit items, historical PIs may not reflect new opportunities.
+
+4. **Seasonal Variations**: The algorithm doesn't account for seasonal sales fluctuations.
+
+### Best Practices to Overcome Limitations
+
+<Steps>
+  <Step title="Give Time to Stabilize">
+    Don't stress over targets in your first week. Focus on learning products and building a baseline.
+  </Step>
+
+  <Step title="Communicate with Your Manager">
+    If targets seem unrealistic, discuss with your manager. They can provide context about team dynamics.
+  </Step>
+
+  <Step title="Use as a Guide, Not a Rule">
+    The target is a recommendation, not a requirement. Use it to motivate improvement at your own pace.
+  </Step>
+
+  <Step title="Track Trends Over Goals">
+    Focus on whether your PI is trending upward over weeks, not whether you hit the exact target daily.
+  </Step>
+</Steps>
+
+## Future Enhancements
+
+Potential improvements to the algorithm could include:
+
+- **Seasonal Adjustments**: Factor in historical seasonal trends
+- **Product Weighting**: Consider difficulty of selling different products
+- **Confidence Intervals**: Provide a target range instead of a single number
+- **Time-Based Targets**: Separate daily, weekly, and monthly recommendations
+- **Custom Growth Factors**: Managers could adjust the 10% growth rate per team member
+
+## Conclusion
+
+The recommendation algorithm provides a data-driven approach to setting sales targets. By considering both individual performance and team context, it creates personalized, achievable goals that drive continuous improvement.
+
+<Tip>
+  The most successful salespersons use the recommendation as one tool among many. Combine it with manager feedback, personal experience, and market conditions for optimal results.
+</Tip>
